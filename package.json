@@ -8,10 +8,11 @@
     "dev": "tsx watch src/main/server.ts",
     "start": "tsx src/main/server.ts",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test \"src/**/*.test.ts\"",
+    "test": "tsx --test src/domain/*.test.ts src/infrastructure/*.test.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "test:int": "tsx --test --test-concurrency=1 src/main/*.int.test.ts"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.10.1",

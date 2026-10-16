@@ -1,6 +1,7 @@
 import type { PublicUser } from './auth-service.ts';
 import { AppError } from './errors.ts';
 import { netBalances, settleUp } from '../domain/balances.ts';
+import { today as todayIso } from '../domain/dates.ts';
 import { addMealsToGroceries } from '../domain/groceries.ts';
 import type { Bill, Expense, ExpenseCategory, FlatState, GroceryItem, Ingredient, IsoDate, Meal, Member, Task } from '../domain/model.ts';
 import { splitEqual } from '../domain/money.ts';
@@ -12,7 +13,7 @@ import type { PrismaClient } from '../infrastructure/prisma.ts';
 
 const toDb = (d: IsoDate) => new Date(`${d}T00:00:00Z`);
 const fromDb = (d: Date): IsoDate => d.toISOString().slice(0, 10);
-const todayIso = (): IsoDate => new Date().toISOString().slice(0, 10);
+
 
 type Tx = Parameters<Parameters<PrismaClient['$transaction']>[0]>[0];
 
@@ -34,14 +35,22 @@ export class FlatService {
 
   async create(user: PublicUser, name: string): Promise<FlatState> {
     const flatId = newId();
-    await this.db.flat.create({
-      data: {
-        id: flatId,
-        name: name.trim(),
-        joinCode: newJoinCode(),
-        members: { create: { id: newId(), userId: user.id, name: user.name, role: 'admin', moveIn: toDb(todayIso()) } },
-      },
-    });
+    // Join codes are random; on the (very rare) unique clash, draw another.
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await this.db.flat.create({
+          data: {
+            id: flatId,
+            name: name.trim(),
+            joinCode: newJoinCode(),
+            members: { create: { id: newId(), userId: user.id, name: user.name, role: 'admin', moveIn: toDb(todayIso()) } },
+          },
+        });
+        break;
+      } catch (e) {
+        if (attempt >= 3 || !isUniqueViolation(e)) throw e;
+      }
+    }
     return this.state(user, flatId);
   }
 
@@ -384,3 +393,6 @@ export class FlatService {
     };
   }
 }
+
+const isUniqueViolation = (e: unknown) =>
+  typeof e === 'object' && e !== null && 'code' in e && (e as { code: unknown }).code === 'P2002';

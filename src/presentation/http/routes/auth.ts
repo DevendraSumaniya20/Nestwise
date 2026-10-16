@@ -15,13 +15,22 @@ export function authRouter(auth: AuthService): Router {
     message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many attempts. Try again in a few minutes.' } },
   });
 
+  // Refresh runs in the background during normal use, so it gets its own, looser budget.
+  const refreshLimited = rateLimit({
+    windowMs: 15 * 60_000,
+    limit: 120,
+    standardHeaders: 'draft-8',
+    legacyHeaders: false,
+    message: { error: { code: 'TOO_MANY_REQUESTS', message: 'Too many attempts. Try again in a few minutes.' } },
+  });
+
   r.post('/auth/register', limited, async (req, res) => {
     res.status(201).json(await auth.register(registerBody.parse(req.body)));
   });
   r.post('/auth/login', limited, async (req, res) => {
     res.json(await auth.login(loginBody.parse(req.body)));
   });
-  r.post('/auth/refresh', limited, async (req, res) => {
+  r.post('/auth/refresh', refreshLimited, async (req, res) => {
     res.json(await auth.refresh(refreshBody.parse(req.body).refreshToken));
   });
   r.post('/auth/forgot-password', limited, async (req, res) => {
