@@ -1,8 +1,6 @@
 import { type BottomTabBarButtonProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { DoorOpen, House, ListChecks, UtensilsCrossed, Wallet, type LucideIcon } from 'lucide-react-native';
 import React from 'react';
-import { useColorScheme } from 'react-native';
 import { Touchable } from '../components';
 import { font, iconSize, ms } from '../constants';
 import { useColors } from '../hooks';
@@ -31,16 +29,9 @@ const TABS: { key: keyof Strings['tabs']; icon: LucideIcon; component: React.Com
 export function RootTabs() {
   const c = useColors();
   const t = useT();
-  const base = useColorScheme() === 'dark' ? DarkTheme : DefaultTheme;
 
   return (
-    <NavigationContainer
-      theme={{
-        ...base,
-        colors: { ...base.colors, primary: c.accent, background: c.bg, card: c.card, text: c.ink, border: c.line },
-      }}
-    >
-      <Tab.Navigator
+    <Tab.Navigator
         screenOptions={{
           headerShown: false,
           animation: 'shift',
@@ -63,7 +54,6 @@ export function RootTabs() {
             }}
           />
         ))}
-      </Tab.Navigator>
-    </NavigationContainer>
+    </Tab.Navigator>
   );
 }

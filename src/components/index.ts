@@ -10,3 +10,5 @@ export * from './Row';
 export * from './Screen';
 export * from './Text';
 export * from './Touchable';
+export * from './AuthLayout';
+export * from './StateViews';

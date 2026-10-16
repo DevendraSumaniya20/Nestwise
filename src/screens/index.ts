@@ -3,3 +3,8 @@ export * from './FoodScreen';
 export * from './HomeScreen';
 export * from './MoneyScreen';
 export * from './TasksScreen';
+export * from './FlatSetupScreen';
+export * from './auth/ForgotPasswordScreen';
+export * from './auth/LoginScreen';
+export * from './auth/RegisterScreen';
+export * from './auth/ResetPasswordScreen';

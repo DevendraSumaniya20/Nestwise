@@ -6,7 +6,7 @@ export type Reminder = {
   id: string;
   kind: 'grocery' | 'bill' | 'task';
   /** Who should act; undefined = whole flat. */
-  for?: Id;
+  for?: Id | undefined;
   title: string;
   detail: string;
   /** Days until due; negative = overdue. */

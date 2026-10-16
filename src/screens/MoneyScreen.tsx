@@ -10,13 +10,13 @@ import { useT } from '../i18n';
 
 export function MoneyScreen() {
   const t = useT();
-  const { state, nameOf, active } = useFlat();
+  const { state, nameOf, active, refresh } = useFlat();
   const c = useColors();
   const net = netBalances(state.expenses, state.members.map(m => m.id));
   const transfers = settleUp(net);
 
   return (
-    <Screen title={t.money.title} subtitle={t.money.subtitle}>
+    <Screen title={t.money.title} subtitle={t.money.subtitle} onRefresh={refresh}>
       <AddCard title={t.money.add}>{close => <AddExpense onDone={close} />}</AddCard>
 
       <Card title={t.money.balances}>
@@ -80,14 +80,13 @@ function AddExpense({ onDone }: { onDone: () => void }) {
   const [split, setSplit] = useState(active.map(m => m.id));
   const [error, setError] = useState('');
 
-  const save = () => {
+  const save = async () => {
     const paise = parseRupees(amount);
     if (!title.trim()) return setError('Add a title.');
     if (!paise) return setError('Enter an amount like 2400 or 2400.50.');
     if (!isIsoDate(date)) return setError('Date must be YYYY-MM-DD.');
     if (split.length === 0) return setError('Pick at least one person to split with.');
-    dispatch({ type: 'addExpense', title: title.trim(), category, amount: paise, paidBy, splitAmong: split, date });
-    onDone();
+    if (await dispatch({ type: 'addExpense', title: title.trim(), category, amount: paise, paidBy, splitAmong: split, date })) onDone();
   };
 
   return (

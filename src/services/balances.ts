@@ -29,12 +29,14 @@ export function settleUp(net: Record<Id, Paise>): Transfer[] {
   let i = 0;
   let j = 0;
   while (i < debtors.length && j < creditors.length) {
-    const amount = Math.min(debtors[i].v, creditors[j].v);
-    out.push({ from: debtors[i].id, to: creditors[j].id, amount });
-    debtors[i].v -= amount;
-    creditors[j].v -= amount;
-    if (debtors[i].v === 0) i++;
-    if (creditors[j].v === 0) j++;
+    const d = debtors[i]!;
+    const c = creditors[j]!;
+    const amount = Math.min(d.v, c.v);
+    out.push({ from: d.id, to: c.id, amount });
+    d.v -= amount;
+    c.v -= amount;
+    if (d.v === 0) i++;
+    if (c.v === 0) j++;
   }
   return out;
 }

@@ -9,7 +9,7 @@ import { useT } from '../i18n';
 
 export function FoodScreen() {
   const t = useT();
-  const { state, dispatch, today, active, nameOf } = useFlat();
+  const { state, dispatch, today, active, nameOf, refresh } = useFlat();
   const [editing, setEditing] = useState<string | null>(null);
   const days = Array.from({ length: 7 }, (_, i) => addDays(today, i));
   const weekEnd = days[6];
@@ -25,7 +25,7 @@ export function FoodScreen() {
   };
 
   return (
-    <Screen title={t.food.title} subtitle={t.food.subtitle}>
+    <Screen title={t.food.title} subtitle={t.food.subtitle} onRefresh={refresh}>
       <Card title={t.food.week}>
         {days.map(d => {
           const meal = state.meals.find(m => m.date === d);
@@ -113,13 +113,12 @@ function AddGrocery({ onDone }: { onDone: () => void }) {
   const [neededBy, setNeededBy] = useState(addDays(today, 1));
   const [error, setError] = useState('');
 
-  const save = () => {
+  const save = async () => {
     const n = Number(qty);
     if (!name.trim()) return setError('Add an item name.');
     if (!(n > 0)) return setError('Quantity must be a number above 0.');
     if (!isIsoDate(neededBy)) return setError('Date must be YYYY-MM-DD.');
-    dispatch({ type: 'addGrocery', name: name.trim(), qty: n, unit: unit.trim() || 'pc', neededBy });
-    onDone();
+    if (await dispatch({ type: 'addGrocery', name: name.trim(), qty: n, unit: unit.trim() || 'pc', neededBy })) onDone();
   };
 
   return (

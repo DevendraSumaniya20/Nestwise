@@ -5,7 +5,7 @@ import { netBalances } from '../services/balances';
 import { relativeDay } from '../utils/dates';
 import { formatInr } from '../utils/money';
 import { reminders } from '../services/reminders';
-import { Card, Chip, Chips, Empty, IconBadge, Row, Screen, T } from '../components';
+import { Card, Empty, IconBadge, Row, Screen, T } from '../components';
 import { space } from '../constants';
 import { useColors, useFlat } from '../hooks';
 import { useT } from '../i18n';
@@ -14,7 +14,7 @@ const ICON = { grocery: ShoppingCart, bill: Zap, task: CircleCheck } as const;
 
 export function HomeScreen() {
   const t = useT();
-  const { state, dispatch, today, me, active, nameOf } = useFlat();
+  const { state, today, me, active, nameOf, refresh } = useFlat();
   const c = useColors();
   const month = today.slice(0, 7);
   const spent = state.expenses
@@ -28,13 +28,7 @@ export function HomeScreen() {
   const feed = reminders(state, today).filter(r => !r.for || r.for === me.id);
 
   return (
-    <Screen title={state.flatName} subtitle={t.home.subtitle(active.length, me.name)}>
-      <Chips>
-        {active.map(m => (
-          <Chip key={m.id} label={m.name} selected={m.id === me.id} onPress={() => dispatch({ type: 'setCurrentUser', id: m.id })} />
-        ))}
-      </Chips>
-
+    <Screen title={state.flatName} subtitle={t.home.subtitle(active.length, me.name)} onRefresh={refresh}>
       <Card title={t.home.dontForget}>
         {feed.length === 0 ? (
           <Empty>{t.home.allClear}</Empty>

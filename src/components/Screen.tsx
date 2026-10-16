@@ -1,5 +1,5 @@
-import React from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { font, ms, space } from '../constants';
 import { useColors } from '../hooks/useColors';
@@ -9,19 +9,32 @@ export function Screen({
   subtitle,
   right,
   children,
+  onRefresh,
 }: {
   title: string;
   subtitle?: string;
   right?: React.ReactNode;
   children: React.ReactNode;
+  /** Enables pull-to-refresh. */
+  onRefresh?: () => Promise<unknown>;
 }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  const [refreshing, setRefreshing] = useState(false);
+  const refresh = onRefresh
+    ? () => {
+        setRefreshing(true);
+        onRefresh()
+          .catch(() => {})
+          .finally(() => setRefreshing(false));
+      }
+    : undefined;
   return (
     <ScrollView
       style={{ backgroundColor: c.bg }}
       contentContainerStyle={[styles.screen, { paddingTop: insets.top + space.md }]}
       keyboardShouldPersistTaps="handled"
+      refreshControl={refresh ? <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.accent} colors={[c.accent]} /> : undefined}
     >
       <View style={styles.header}>
         <View style={styles.flex}>

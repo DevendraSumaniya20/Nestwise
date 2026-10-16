@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import { LogOut } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { addDays, isIsoDate, relativeDay, shortDate } from '../utils/dates';
 import { EXPENSE_CATEGORIES, type Bill, type ExpenseCategory, type Member } from '../types';
@@ -6,19 +7,25 @@ import { formatInr, parseRupees } from '../utils/money';
 import { moveOutSettlement, outstandingAfterMoveOut } from '../services/settlement';
 import { AddCard, Button, Card, Chip, Chips, Empty, ErrorText, Field, Label, MemberPicker, Row, Screen, T } from '../components';
 import { space } from '../constants';
-import { useColors, useFlat } from '../hooks';
+import { useAuth, useColors, useFlat } from '../hooks';
+import { flatApi } from '../services/api';
 import { useT } from '../i18n';
 
 export function FlatScreen() {
   const t = useT();
-  const { state } = useFlat();
+  const { state, refresh, flatId } = useFlat();
+  const { user, logout } = useAuth();
+  const [joinCode, setJoinCode] = useState('');
+  useEffect(() => {
+    flatApi.joinCode(flatId).then(r => setJoinCode(r.code)).catch(() => {});
+  }, [flatId]);
   const [paying, setPaying] = useState<string | null>(null);
   const [leaving, setLeaving] = useState<string | null>(null);
   const pending = state.bills.filter(b => b.status === 'pending').sort((a, b) => a.dueDate.localeCompare(b.dueDate));
   const paid = state.bills.filter(b => b.status === 'paid');
 
   return (
-    <Screen title={t.flat.title} subtitle={t.flat.subtitle}>
+    <Screen title={t.flat.title} subtitle={t.flat.subtitle} onRefresh={refresh}>
       <Card title={t.flat.pendingBills}>
         {pending.length === 0 ? <Empty>{t.flat.noBills}</Empty> : null}
         {pending.map(b => (
@@ -46,6 +53,17 @@ export function FlatScreen() {
         ))}
       </Card>
       <AddCard title={t.flat.addFlatmate}>{close => <AddMember onDone={close} />}</AddCard>
+
+      <Card title={t.flat.invite}>
+        <T size={26} weight="extrabold">{joinCode || '········'}</T>
+        <T muted size={13}>{t.flat.inviteHelp}</T>
+      </Card>
+
+      <Card title={t.flat.account}>
+        <T strong>{user?.name}</T>
+        <T muted size={13}>{user?.email}</T>
+        <Button kind="ghost" icon={LogOut} title={t.common.logout} onPress={logout} />
+      </Card>
     </Screen>
   );
 }
@@ -174,14 +192,13 @@ function AddBill({ onDone }: { onDone: () => void }) {
   const [periodEnd, setPeriodEnd] = useState(today);
   const [error, setError] = useState('');
 
-  const save = () => {
+  const save = async () => {
     const p = parseRupees(amount);
     if (!name.trim()) return setError('Add a bill name.');
     if (!p) return setError('Enter the amount or your best estimate.');
     if (![dueDate, periodStart, periodEnd].every(isIsoDate)) return setError('Dates must be YYYY-MM-DD.');
     if (periodStart > periodEnd) return setError('Period start must be before period end.');
-    dispatch({ type: 'addBill', bill: { name: name.trim(), category, amount: p, dueDate, periodStart, periodEnd } });
-    onDone();
+    if (await dispatch({ type: 'addBill', bill: { name: name.trim(), category, amount: p, dueDate, periodStart, periodEnd } })) onDone();
   };
 
   return (
@@ -214,11 +231,10 @@ function AddMember({ onDone }: { onDone: () => void }) {
   const [name, setName] = useState('');
   const [moveIn, setMoveIn] = useState(today);
   const [error, setError] = useState('');
-  const save = () => {
+  const save = async () => {
     if (!name.trim()) return setError('Add a name.');
     if (!isIsoDate(moveIn)) return setError('Date must be YYYY-MM-DD.');
-    dispatch({ type: 'addMember', name: name.trim(), moveIn });
-    onDone();
+    if (await dispatch({ type: 'addMember', name: name.trim(), moveIn })) onDone();
   };
   return (
     <>

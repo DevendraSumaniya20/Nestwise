@@ -14,13 +14,13 @@ const STATUS: Record<TaskStatus, string> = {
 
 export function TasksScreen() {
   const t = useT();
-  const { state, dispatch, today, nameOf } = useFlat();
+  const { state, dispatch, today, nameOf, refresh } = useFlat();
   const c = useColors();
   const tasks = [...state.tasks].sort(
     (a, b) => Number(a.status === 'done') - Number(b.status === 'done') || a.due.localeCompare(b.due),
   );
   return (
-    <Screen title={t.tasks.title} subtitle={t.tasks.subtitle}>
+    <Screen title={t.tasks.title} subtitle={t.tasks.subtitle} onRefresh={refresh}>
       <AddCard title={t.tasks.add}>{close => <AddTask onDone={close} />}</AddCard>
       <Card title={t.tasks.all}>
         {tasks.length === 0 ? (
@@ -57,11 +57,10 @@ function AddTask({ onDone }: { onDone: () => void }) {
   const [due, setDue] = useState(addDays(today, 1));
   const [error, setError] = useState('');
 
-  const save = () => {
+  const save = async () => {
     if (!title.trim()) return setError('Add a task title.');
     if (!isIsoDate(due)) return setError('Date must be YYYY-MM-DD.');
-    dispatch({ type: 'addTask', title: title.trim(), assignee, due });
-    onDone();
+    if (await dispatch({ type: 'addTask', title: title.trim(), assignee, due })) onDone();
   };
 
   return (

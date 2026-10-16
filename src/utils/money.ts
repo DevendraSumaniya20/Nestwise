@@ -25,11 +25,11 @@ export function splitByWeights(
   amount: Paise,
   weights: Record<Id, number>,
 ): Record<Id, Paise> {
-  const ids = Object.keys(weights).filter(id => weights[id] > 0);
-  const total = ids.reduce((s, id) => s + weights[id], 0);
+  const ids = Object.keys(weights).filter(id => (weights[id] ?? 0) > 0);
+  const total = ids.reduce((s, id) => s + weights[id]!, 0);
   if (total === 0) return {};
   const parts = ids.map(id => {
-    const exact = (amount * weights[id]) / total;
+    const exact = (amount * weights[id]!) / total;
     return { id, base: Math.floor(exact), rem: exact - Math.floor(exact) };
   });
   let left = amount - parts.reduce((s, x) => s + x.base, 0);
