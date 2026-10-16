@@ -1,7 +1,7 @@
-import { addDays } from '../domain/dates';
-import type { FlatState, Member } from '../domain/model';
-import { splitEqual } from '../domain/money';
-import { RECIPES } from '../domain/recipes';
+import { addDays } from '../utils/dates';
+import type { FlatState, Member } from '../types';
+import { splitEqual } from '../utils/money';
+import { RECIPES } from './recipes';
 
 /** Demo flat from the original idea, dated around `on` so reminders show up. */
 export function seedFlat(on: string): FlatState {

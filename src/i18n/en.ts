@@ -1,0 +1,47 @@
+export const en = {
+  common: { cancel: 'Cancel' },
+  tabs: { home: 'Home', money: 'Money', food: 'Food', tasks: 'Tasks', flat: 'Flat' },
+  home: {
+    subtitle: (count: number, name: string) => `${count} flatmates · viewing as ${name}`,
+    dontForget: "Don't forget",
+    allClear: 'Nothing urgent. The flat is on top of things.',
+    money: 'Money',
+    thisMonth: 'This month',
+    shopping: 'Shopping',
+    tonight: 'Tonight',
+    notPlanned: 'Not planned',
+    yourTasks: 'Your tasks',
+    noTasks: 'No open tasks for you.',
+  },
+  money: {
+    title: 'Money',
+    subtitle: 'Who paid, who owes',
+    add: 'Add expense',
+    balances: 'Balances',
+    settleUp: 'Settle up',
+    square: 'Everyone is square.',
+    expenses: 'Expenses',
+    none: 'No expenses yet.',
+  },
+  food: {
+    title: 'Meals & groceries',
+    subtitle: 'Plan dinners, the list writes itself',
+    week: "This week's dinners",
+    list: 'Grocery list',
+    listEmpty: 'Empty. Plan dinners above, then add their ingredients.',
+    add: 'Add grocery item',
+  },
+  tasks: { title: 'Tasks', subtitle: 'Who does what, by when', add: 'Add task', all: 'All tasks', none: 'No tasks yet.' },
+  flat: {
+    title: 'Flat',
+    subtitle: 'Bills, people, move-outs',
+    pendingBills: 'Pending bills',
+    noBills: 'No pending bills.',
+    addBill: 'Add bill',
+    paidBills: 'Paid bills',
+    flatmates: 'Flatmates',
+    addFlatmate: 'Add flatmate',
+  },
+};
+
+export type Strings = typeof en;

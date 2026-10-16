@@ -13,32 +13,39 @@ Meal plan -> ingredients -> grocery list -> assigned shopper -> reminder
 Bills / purchases -> expenses -> balances -> settle up -> move-out settlement
 ```
 
-## Architecture (clean architecture)
+## Architecture (clean architecture, folder per concern)
 
 ```
 src/
-  domain/        Pure TypeScript. Entities + business rules. No React, no RN.
-    model.ts         Entities (Member, Expense, Bill, Meal, GroceryItem, Task, FlatState)
-    money.ts         Paise (integer money), formatting, splits (equal / by occupancy days)
-    dates.ts         ISO date helpers (YYYY-MM-DD)
-    balances.ts      Net balances + "who pays whom" suggestions
-    settlement.ts    Move-out settlement with future-bill estimates + reconciliation
-    groceries.ts     Meals -> merged grocery list
-    reminders.ts     "Don't let the flat forget" feed
-    recipes.ts       Built-in meal library (ingredients per 4 people)
-    FlatRepository.ts  Port: load/save FlatState
-  data/          Adapters for domain ports.
-    AsyncStorageFlatRepository.ts
-    seed.ts          Demo flat ("Sunrise Apartment")
-  app/           Application layer: state + use-case actions (reducer), React context.
-  ui/            Presentation: theme, shared components, screens, tab shell.
+  assets/       fonts/ (Montserrat, linked via react-native.config.js), licenses/
+  types/        Entities (Member, Expense, Bill, Meal, GroceryItem, Task, FlatState)
+  utils/        Pure helpers: dates (YYYY-MM-DD), money (paise, splits)
+  services/     Business rules, pure TS: balances, settlement, groceries, reminders,
+                FlatRepository port. Unit tested in services/__tests__.
+  data/         Adapters + static data: AsyncStorageFlatRepository, seed, recipes
+  store/        App state: flatReducer (use-case actions), FlatProvider (context + persistence)
+  hooks/        useFlat, useColors
+  constants/    colors (light/dark), fonts, sizes (react-native-size-matters `ms`)
+  i18n/         Strings (English); useT()
+  components/   One file per UI component (Touchable, Button, Card, Chip, Checkbox, Field,
+                Icon, Row, Screen, Text, AddCard, Empty) + index barrel
+  screens/      Home, Money, Food, Tasks, Flat
+  navigation/   RootTabs (React Navigation bottom tabs)
 ```
 
 Rules:
-- `domain` imports nothing outside `domain`.
-- `data` implements domain ports; `app` depends on domain ports, not on AsyncStorage.
-- `ui` talks only to `app` (hooks/actions) and reads domain helpers for display.
+- `types`, `utils`, `services` never import React or React Native.
+- `data` implements service ports; `store` depends on the port, not on AsyncStorage.
+- Screens use `hooks`, `components`, `constants`, `i18n` — never raw colours, font names or emoji.
+- Every tappable surface goes through `components/Touchable` (ripple + Reanimated press).
+- Sizes go through `ms()`; fonts through `constants/fonts`.
 - Money is integer paise everywhere. Dates are `YYYY-MM-DD` strings.
+
+## Stack
+
+React Native 0.88 · TypeScript · React Navigation (bottom tabs) · Reanimated 4 + Worklets ·
+Gesture Handler · react-native-svg + lucide-react-native icons · react-native-size-matters ·
+AsyncStorage · Montserrat.
 
 ## Key rules
 

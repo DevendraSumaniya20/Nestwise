@@ -1,6 +1,6 @@
 import { createAsyncStorage } from '@react-native-async-storage/async-storage';
-import type { FlatRepository } from '../domain/FlatRepository';
-import type { FlatState } from '../domain/model';
+import type { FlatRepository } from '../services/FlatRepository';
+import type { FlatState } from '../types';
 
 const KEY = 'flat';
 
