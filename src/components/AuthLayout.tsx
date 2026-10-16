@@ -46,5 +46,5 @@ const styles = StyleSheet.create({
   wordmark: { fontFamily: font.extrabold, fontSize: ms(20) },
   title: { fontFamily: font.extrabold, fontSize: ms(28), letterSpacing: -0.5 },
   subtitle: { fontFamily: font.regular, fontSize: ms(15), marginTop: space.xs },
-  card: { borderRadius: radius, borderWidth: StyleSheet.hairlineWidth, padding: space.lg, gap: space.xs },
+  card: { borderRadius: radius, borderWidth: StyleSheet.hairlineWidth, padding: space.lg, gap: space.md },
 });

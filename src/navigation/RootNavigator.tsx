@@ -1,6 +1,6 @@
 import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useColorScheme } from 'react-native';
 import { ErrorState, LoadingState } from '../components';
 import { useAuth, useColors } from '../hooks';
@@ -11,7 +11,9 @@ import {
   RegisterScreen,
   ResetPasswordScreen,
 } from '../screens';
-import { FlatProvider } from '../store/FlatProvider';
+import { useAppDispatch, useAppSelector } from '../store';
+import { bootstrap } from '../store/authSlice';
+import { loadFlat } from '../store/flatSlice';
 import { RootTabs } from './RootTabs';
 import type { AuthStackParams } from './types';
 
@@ -20,8 +22,13 @@ const AuthStack = createNativeStackNavigator<AuthStackParams>();
 /** Signed out → auth stack. Signed in → flat setup (if no flat) or the tabs. */
 export function RootNavigator() {
   const c = useColors();
+  const dispatch = useAppDispatch();
   const { user, ready } = useAuth();
   const base = useColorScheme() === 'dark' ? DarkTheme : DefaultTheme;
+
+  useEffect(() => {
+    dispatch(bootstrap());
+  }, [dispatch]);
 
   if (!ready) return <LoadingState />;
 
@@ -34,14 +41,7 @@ export function RootNavigator() {
     >
       {user ? (
         // Keyed by user so switching accounts never shows the previous flat.
-        <FlatProvider
-          key={user.id}
-          fallback={<LoadingState />}
-          noFlat={onReady => <FlatSetupScreen onReady={onReady} />}
-          errorView={(message, retry) => <ErrorState message={message} onRetry={retry} />}
-        >
-          <RootTabs />
-        </FlatProvider>
+        <FlatGate key={user.id} />
       ) : (
         <AuthStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
           <AuthStack.Screen name="Login" component={LoginScreen} />
@@ -52,4 +52,18 @@ export function RootNavigator() {
       )}
     </NavigationContainer>
   );
+}
+
+/** Loads the signed-in user's flat, then shows setup, an error, or the tabs. */
+function FlatGate() {
+  const dispatch = useAppDispatch();
+  const { status, error } = useAppSelector(s => s.flat);
+  useEffect(() => {
+    dispatch(loadFlat());
+  }, [dispatch]);
+
+  if (status === 'none') return <FlatSetupScreen />;
+  if (status === 'error') return <ErrorState message={error} onRetry={() => dispatch(loadFlat())} />;
+  if (status !== 'ready') return <LoadingState />;
+  return <RootTabs />;
 }

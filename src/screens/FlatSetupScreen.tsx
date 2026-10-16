@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { AuthLayout, Button, ErrorText, Field, T } from '../components';
 import { useAuth, useSubmit } from '../hooks';
 import { useT } from '../i18n';
-import { flatApi } from '../services/api';
+import { useAppDispatch } from '../store';
+import { createFlat, joinFlat } from '../store/flatSlice';
 
 /** First run after sign-up: create a flat or join one by code. */
-export function FlatSetupScreen({ onReady }: { onReady: () => void }) {
+export function FlatSetupScreen() {
   const t = useT();
   const { logout } = useAuth();
+  const dispatch = useAppDispatch();
   const { busy, error, setError, run } = useSubmit();
   const [name, setName] = useState('');
   const [code, setCode] = useState('');
@@ -21,7 +23,7 @@ export function FlatSetupScreen({ onReady }: { onReady: () => void }) {
         title={t.setup.create}
         disabled={busy}
         onPress={() =>
-          name.trim() ? run(async () => { await flatApi.create(name.trim()); onReady(); }) : setError('Name your flat.')
+          name.trim() ? run(() => dispatch(createFlat(name.trim())).unwrap().then(() => {}, toError)) : setError('Name your flat.')
         }
       />
       <T strong>{t.setup.joinTitle}</T>
@@ -31,10 +33,14 @@ export function FlatSetupScreen({ onReady }: { onReady: () => void }) {
         title={t.setup.join}
         disabled={busy}
         onPress={() =>
-          code.trim().length === 8 ? run(async () => { await flatApi.join(code.trim()); onReady(); }) : setError('Join codes are 8 characters.')
+          code.trim().length === 8 ? run(() => dispatch(joinFlat(code.trim())).unwrap().then(() => {}, toError)) : setError('Join codes are 8 characters.')
         }
       />
       <Button kind="ghost" title={t.common.logout} onPress={logout} />
     </AuthLayout>
   );
 }
+
+const toError = (e: unknown) => {
+  throw new Error(typeof e === 'string' ? e : 'Something went wrong.');
+};

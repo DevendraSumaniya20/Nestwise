@@ -1,19 +1,19 @@
 import type { Bill, ExpenseCategory, FlatState, Id, IsoDate, Paise, Task } from '../../types';
-import { api } from './client';
+import { api, publicApi } from './client';
 
 export * from './client';
-export { tokenStore } from './tokenStore';
+export type { Tokens } from './tokenStore';
 
 export type User = { id: string; email: string; name: string };
-export type AuthResult = { token: string; user: User };
+export type AuthResult = { accessToken: string; refreshToken: string; accessExpiresAt: string; user: User };
 export type FlatSummary = { id: string; name: string; joinCode: string; memberCount: number };
 
 export const authApi = {
-  register: (b: { email: string; name: string; password: string }) => api<AuthResult>('POST', '/auth/register', b),
-  login: (b: { email: string; password: string }) => api<AuthResult>('POST', '/auth/login', b),
-  forgotPassword: (email: string) => api<{ message: string }>('POST', '/auth/forgot-password', { email }),
+  register: (b: { email: string; name: string; password: string }) => publicApi<AuthResult>('POST', '/auth/register', b),
+  login: (b: { email: string; password: string }) => publicApi<AuthResult>('POST', '/auth/login', b),
+  forgotPassword: (email: string) => publicApi<{ message: string }>('POST', '/auth/forgot-password', { email }),
   resetPassword: (b: { email: string; code: string; password: string }) =>
-    api<AuthResult>('POST', '/auth/reset-password', b),
+    publicApi<AuthResult>('POST', '/auth/reset-password', b),
   logout: () => api<void>('POST', '/auth/logout'),
   me: () => api<{ user: User }>('GET', '/me'),
 };

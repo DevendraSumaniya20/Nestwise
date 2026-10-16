@@ -8,6 +8,6 @@ module.exports = {
   },
   // These packages ship untranspiled ESM.
   transformIgnorePatterns: [
-    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-navigation|lucide-react-native|react-native-svg|react-native-reanimated|react-native-worklets|react-native-gesture-handler|react-native-screens|react-native-size-matters)/)',
+    'node_modules/(?!((jest-)?react-native|@react-native(-community)?|@react-navigation|lucide-react-native|react-native-svg|react-native-reanimated|react-native-worklets|react-native-gesture-handler|react-native-screens|react-native-size-matters|immer|@reduxjs/toolkit|react-redux|redux|reselect)/)',
   ],
 };

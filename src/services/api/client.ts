@@ -1,4 +1,5 @@
 import { API_URL } from './config';
+import { type Tokens, tokenStore } from './tokenStore';
 
 export class ApiError extends Error {
   constructor(
@@ -10,36 +11,46 @@ export class ApiError extends Error {
   }
 }
 
-let token: string | null = null;
-let onUnauthorized: () => void = () => {};
+type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 
-export const setAuthToken = (t: string | null) => {
-  token = t;
-};
-/** Called when the server rejects the session, so the app can return to login. */
-export const setUnauthorizedHandler = (fn: () => void) => {
-  onUnauthorized = fn;
+let tokens: Tokens | null = null;
+let onSessionEnded: () => void = () => {};
+let refreshing: Promise<boolean> | null = null;
+
+/** Sets the in-memory tokens and persists them (or clears them) in secure storage. */
+export async function setTokens(next: Tokens | null): Promise<void> {
+  tokens = next;
+  await (next ? tokenStore.set(next) : tokenStore.clear().then(() => undefined));
+}
+export async function loadTokens(): Promise<boolean> {
+  tokens = await tokenStore.get().catch(() => null);
+  return tokens !== null;
+}
+/** Called when the refresh token is rejected, so the app can return to login. */
+export const setSessionEndedHandler = (fn: () => void) => {
+  onSessionEnded = fn;
 };
 
-export async function api<T>(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', path: string, body?: unknown): Promise<T> {
-  let res: Response;
+async function send(method: Method, path: string, body: unknown, auth: boolean): Promise<Response> {
   try {
-    res = await fetch(`${API_URL}${path}`, {
+    return await fetch(`${API_URL}${path}`, {
       method,
       headers: {
         Accept: 'application/json',
         ...(body !== undefined && { 'Content-Type': 'application/json' }),
-        ...(token && { Authorization: `Bearer ${token}` }),
+        ...(auth && tokens && { Authorization: `Bearer ${tokens.accessToken}` }),
       },
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(0, 'NETWORK', 'Cannot reach the Nestwise server. Check that it is running and you are online.');
   }
+}
+
+async function parse<T>(res: Response): Promise<T> {
   if (res.status === 204) return undefined as T;
   const data = await res.json().catch(() => null);
   if (!res.ok) {
-    if (res.status === 401 && token) onUnauthorized();
     const err = data?.error;
     const detail = err?.details?.[0];
     throw new ApiError(
@@ -49,4 +60,41 @@ export async function api<T>(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'
     );
   }
   return data as T;
+}
+
+/** One refresh at a time; parallel 401s all wait for the same result. */
+function refreshTokens(): Promise<boolean> {
+  refreshing ??= (async () => {
+    const refreshToken = tokens?.refreshToken;
+    if (!refreshToken) return false;
+    const res = await send('POST', '/auth/refresh', { refreshToken }, false).catch(() => null);
+    if (!res?.ok) {
+      // Network failure keeps the session; a rejected refresh token ends it.
+      if (res && res.status === 401) {
+        await setTokens(null);
+        onSessionEnded();
+      }
+      return false;
+    }
+    const next = (await res.json()) as Tokens;
+    await setTokens({ accessToken: next.accessToken, refreshToken: next.refreshToken });
+    return true;
+  })().finally(() => {
+    refreshing = null;
+  });
+  return refreshing;
+}
+
+/** Authenticated call: on an expired access token, refreshes once and retries. */
+export async function api<T>(method: Method, path: string, body?: unknown): Promise<T> {
+  let res = await send(method, path, body, true);
+  if (res.status === 401 && tokens && (await refreshTokens())) {
+    res = await send(method, path, body, true);
+  }
+  return parse<T>(res);
+}
+
+/** Unauthenticated call (login, register, password reset). */
+export async function publicApi<T>(method: Method, path: string, body?: unknown): Promise<T> {
+  return parse<T>(await send(method, path, body, false));
 }
