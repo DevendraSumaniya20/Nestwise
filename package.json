@@ -12,7 +12,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx prisma/seed.ts",
-    "test:int": "tsx --test --test-concurrency=1 src/main/*.int.test.ts"
+    "test:int": "tsx --test --test-concurrency=1 src/main/*.int.test.ts",
+    "db:cleanup-tests": "tsx prisma/cleanup-test-users.ts"
   },
   "dependencies": {
     "@prisma/adapter-mariadb": "^7.10.1",
