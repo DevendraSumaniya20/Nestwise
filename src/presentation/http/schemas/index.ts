@@ -31,7 +31,8 @@ export const remindersQuery = z.object({ on: isoDate.optional() });
 
 export const addExpenseBody = z.object({
   title: z.string().trim().min(1).max(120),
-  category: z.enum(EXPENSE_CATEGORIES).exclude(['Settlement']),
+  // 'Settlement' is how a cash/UPI payment between two flatmates is recorded.
+  category: z.enum(EXPENSE_CATEGORIES),
   amount: paise,
   paidBy: id,
   splitAmong: z.array(id).min(1).max(50),
