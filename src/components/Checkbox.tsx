@@ -1,7 +1,7 @@
 import { Check } from 'lucide-react-native';
 import React from 'react';
 import { StyleSheet } from 'react-native';
-import Animated, { ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { ms } from '../constants';
 import { useColors } from '../hooks/useColors';
 import { Icon } from './Icon';
@@ -12,7 +12,7 @@ export function Checkbox({ checked, onPress, label }: { checked: boolean; onPres
   return (
     <Touchable
       onPress={onPress}
-      pressScale={0.85}
+      pressScale={1}
       accessibilityRole="checkbox"
       accessibilityState={{ checked }}
       accessibilityLabel={label}
@@ -20,7 +20,7 @@ export function Checkbox({ checked, onPress, label }: { checked: boolean; onPres
       style={[styles.check, { borderColor: checked ? c.good : c.line }, checked && { backgroundColor: c.good }]}
     >
       {checked ? (
-        <Animated.View entering={ZoomIn.springify().damping(14)}>
+        <Animated.View entering={FadeIn.duration(150)} exiting={FadeOut.duration(120)}>
           <Icon as={Check} size="sm" color={c.card} />
         </Animated.View>
       ) : null}

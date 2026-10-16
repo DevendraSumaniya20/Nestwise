@@ -5,7 +5,7 @@ import { addDays, isIsoDate, relativeDay, shortDate } from '../utils/dates';
 import { EXPENSE_CATEGORIES, type Bill, type ExpenseCategory, type Member } from '../types';
 import { formatInr, parseRupees } from '../utils/money';
 import { moveOutSettlement, outstandingAfterMoveOut } from '../services/settlement';
-import { AddCard, Button, Card, Chip, Chips, Empty, ErrorText, Field, Label, MemberPicker, Row, Screen, T } from '../components';
+import { AddCard, Avatar, Button, Card, Chip, Chips, Empty, ErrorText, Field, Label, MemberPicker, Row, Screen, T } from '../components';
 import { space } from '../constants';
 import { useAuth, useColors, useFlat } from '../hooks';
 import { flatApi } from '../services/api';
@@ -118,6 +118,7 @@ function MemberRow({ member, open, onToggle }: { member: Member; open: boolean; 
     const left = outstandingAfterMoveOut(member.id, state.members, state.expenses, state.bills);
     return (
       <Row>
+        <Avatar id={member.id} name={member.name} size={36} faded />
         <View style={styles.flex}>
           <T muted>{member.name}</T>
           <T muted size={13}>Moved out {shortDate(member.moveOut)}</T>
@@ -132,6 +133,7 @@ function MemberRow({ member, open, onToggle }: { member: Member; open: boolean; 
   return (
     <View>
       <Row onPress={onToggle} label={`Move-out options for ${member.name}`}>
+        <Avatar id={member.id} name={member.name} size={36} />
         <View style={styles.flex}>
           <T>{member.name}</T>
           <T muted size={13}>Since {shortDate(member.moveIn)}</T>

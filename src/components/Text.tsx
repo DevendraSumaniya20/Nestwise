@@ -11,6 +11,7 @@ export function T({
   weight,
   size = 15,
   color,
+  numberOfLines,
 }: {
   children: React.ReactNode;
   muted?: boolean;
@@ -19,10 +20,12 @@ export function T({
   weight?: FontWeight;
   size?: number;
   color?: string;
+  numberOfLines?: number;
 }) {
   const c = useColors();
   return (
     <Text
+      numberOfLines={numberOfLines}
       style={{
         color: color ?? (muted ? c.muted : c.ink),
         fontSize: ms(size),

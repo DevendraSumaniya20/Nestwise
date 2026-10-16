@@ -44,7 +44,7 @@ export function RootNavigator() {
         // Keyed by user so switching accounts never shows the previous flat.
         <FlatGate key={user.id} />
       ) : (
-        <AuthStack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+        <AuthStack.Navigator screenOptions={{ headerShown: false, animation: 'fade' }}>
           <AuthStack.Screen name="Login" component={LoginScreen} />
           <AuthStack.Screen name="Register" component={RegisterScreen} />
           <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />

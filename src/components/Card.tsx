@@ -1,6 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown, LinearTransition } from 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
 import { font, ms, radius, space } from '../constants';
 import { useColors } from '../hooks/useColors';
 
@@ -8,7 +8,8 @@ export function Card({ title, children, action }: { title?: string; children: Re
   const c = useColors();
   return (
     <Animated.View
-      entering={FadeInDown.duration(320)}
+      entering={FadeIn.duration(280)}
+      exiting={FadeOut.duration(200)}
       layout={LinearTransition.duration(220)}
       style={[styles.card, { backgroundColor: c.card, borderColor: c.line }]}
     >

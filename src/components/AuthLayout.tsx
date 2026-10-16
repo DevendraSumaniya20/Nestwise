@@ -1,7 +1,7 @@
 import { House } from 'lucide-react-native';
 import React from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { font, ms, radius, space } from '../constants';
 import { useColors } from '../hooks/useColors';
@@ -17,18 +17,18 @@ export function AuthLayout({ title, subtitle, children }: { title: string; subti
         contentContainerStyle={[styles.content, { paddingTop: insets.top + space.xl, paddingBottom: insets.bottom + space.xl }]}
         keyboardShouldPersistTaps="handled"
       >
-        <Animated.View entering={FadeInDown.duration(400)} style={styles.brand}>
+        <Animated.View entering={FadeIn.duration(350)} style={styles.brand}>
           <View style={[styles.mark, { backgroundColor: c.accent }]}>
             <Icon as={House} size="lg" color={c.accentInk} />
           </View>
           <Text style={[styles.wordmark, { color: c.ink }]}>Nestwise</Text>
         </Animated.View>
-        <Animated.View entering={FadeInDown.delay(80).duration(400)}>
+        <Animated.View entering={FadeIn.delay(80).duration(350)}>
           <Text style={[styles.title, { color: c.ink }]} accessibilityRole="header">{title}</Text>
           <Text style={[styles.subtitle, { color: c.muted }]}>{subtitle}</Text>
         </Animated.View>
         <Animated.View
-          entering={FadeInDown.delay(160).duration(400)}
+          entering={FadeIn.delay(160).duration(350)}
           style={[styles.card, { backgroundColor: c.card, borderColor: c.line }]}
         >
           {children}

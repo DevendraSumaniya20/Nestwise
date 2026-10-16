@@ -136,3 +136,15 @@ test('reminders: Friday spinach still unbought on Thursday', () => {
   expect(r[0].for).toBe('rahul');
   expect(r[0].detail).toContain('tomorrow (Fri)');
 });
+
+test('myShare and myDebts describe money from one person’s view', () => {
+  const { myShare, myDebts } = require('../balances') as typeof import('../balances');
+  const e = expense('rahul', 240000);
+  expect(myShare(e, 'rahul')).toEqual({ kind: 'lent', amount: 180000 });
+  expect(myShare(e, 'amit')).toEqual({ kind: 'borrowed', amount: 60000 });
+  expect(myShare({ ...e, owed: { amit: 240000 } }, 'jay')).toEqual({ kind: 'none', amount: 0 });
+  expect(myDebts([{ from: 'amit', to: 'rahul', amount: 5 }, { from: 'rahul', to: 'jay', amount: 3 }], 'rahul')).toEqual([
+    { other: 'amit', amount: 5, owesMe: true },
+    { other: 'jay', amount: 3, owesMe: false },
+  ]);
+});

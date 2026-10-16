@@ -34,7 +34,7 @@ export function RootTabs() {
     <Tab.Navigator
         screenOptions={{
           headerShown: false,
-          animation: 'shift',
+          animation: 'fade',
           tabBarActiveTintColor: c.accent,
           tabBarInactiveTintColor: c.muted,
           tabBarLabelStyle: { fontFamily: font.semibold, fontSize: ms(11) },

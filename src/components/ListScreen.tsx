@@ -1,6 +1,7 @@
 import { FlashList } from '@shopify/flash-list';
 import React from 'react';
 import { RefreshControl, StyleSheet, Text, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { font, ms, radius, space } from '../constants';
 import { useColors } from '../hooks/useColors';
@@ -21,13 +22,17 @@ type Props<T> = {
   data: readonly T[];
   keyExtractor: (item: T) => string;
   renderItem: (item: T) => React.ReactElement;
+  /** Distinct row kinds (e.g. month heading vs expense) so FlashList recycles like with like. */
+  getItemType?: (item: T) => string;
+  /** Extra space under the list, e.g. for a floating button. */
+  bottomInset?: number;
 };
 
 /**
  * A screen whose main content is a long list: rows are virtualised by FlashList
  * (only what's on screen is rendered), styled as one card under `listTitle`.
  */
-export function ListScreen<T>({ title, subtitle, onRefresh, header, footer, listTitle, emptyText, data, keyExtractor, renderItem }: Props<T>) {
+export function ListScreen<T>({ title, subtitle, onRefresh, header, footer, listTitle, emptyText, data, keyExtractor, renderItem, getItemType, bottomInset = 0 }: Props<T>) {
   const c = useColors();
   const insets = useSafeAreaInsets();
   const { refreshing, refresh } = useRefresh(onRefresh);
@@ -39,7 +44,8 @@ export function ListScreen<T>({ title, subtitle, onRefresh, header, footer, list
       data={data}
       keyExtractor={keyExtractor}
       style={{ backgroundColor: c.bg }}
-      contentContainerStyle={{ ...styles.content, paddingTop: insets.top + space.md }}
+      getItemType={getItemType}
+      contentContainerStyle={{ ...styles.content, paddingTop: insets.top + space.md, paddingBottom: ms(32) + bottomInset }}
       keyboardShouldPersistTaps="handled"
       refreshControl={refresh ? <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.accent} colors={[c.accent]} /> : undefined}
       ListHeaderComponent={
@@ -53,7 +59,10 @@ export function ListScreen<T>({ title, subtitle, onRefresh, header, footer, list
         </View>
       }
       renderItem={({ item, index }) => (
-        <View style={[styles.item, card, index === last && styles.cardBottom]}>{renderItem(item)}</View>
+        <View style={[styles.item, card, index === last && styles.cardBottom]}>
+          {/* Rows cascade in on first show; capped so long lists don't wait. */}
+          <Animated.View entering={FadeIn.delay(Math.min(index, 10) * 35).duration(250)}>{renderItem(item)}</Animated.View>
+        </View>
       )}
       ListFooterComponent={footer ? <View style={styles.footer}>{footer}</View> : null}
     />

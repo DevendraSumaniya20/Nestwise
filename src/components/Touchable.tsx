@@ -12,7 +12,6 @@ import {
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
-  withSpring,
   withTiming,
 } from 'react-native-reanimated';
 import { useColors } from '../hooks/useColors';
@@ -30,7 +29,7 @@ type Props = Omit<PressableProps, 'style' | 'children'> & {
 
 /**
  * Every tappable surface: Material ripple (native on Android, Reanimated on
- * iOS, which has none) plus a small spring squeeze. Reduce Motion is honoured
+ * iOS, which has none) plus a small, eased press-in (no bounce). Reduce Motion is honoured
  * by Reanimated's default ReduceMotion.System.
  */
 export function Touchable({
@@ -68,7 +67,7 @@ export function Touchable({
   }));
 
   const handleIn = (e: GestureResponderEvent) => {
-    pressed.value = withSpring(1, { damping: 20, stiffness: 400 });
+    pressed.value = withTiming(1, { duration: 120 });
     if (IOS) {
       const { locationX, locationY } = e.nativeEvent;
       x.value = locationX;
@@ -82,7 +81,7 @@ export function Touchable({
     onPressIn?.(e);
   };
   const handleOut = (e: GestureResponderEvent) => {
-    pressed.value = withSpring(0, { damping: 15, stiffness: 300 });
+    pressed.value = withTiming(0, { duration: 160 });
     if (IOS) fade.value = withTiming(0, { duration: 320 });
     onPressOut?.(e);
   };

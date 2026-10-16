@@ -40,3 +40,20 @@ export function settleUp(net: Record<Id, Paise>): Transfer[] {
   }
   return out;
 }
+
+export type MyShare = { kind: 'lent' | 'borrowed' | 'none'; amount: Paise };
+
+/** Splitwise-style line for one expense from `me`'s point of view. */
+export function myShare(e: Expense, me: Id): MyShare {
+  const net = (e.paid[me] ?? 0) - (e.owed[me] ?? 0);
+  if (net > 0) return { kind: 'lent', amount: net };
+  if (net < 0) return { kind: 'borrowed', amount: -net };
+  return { kind: 'none', amount: 0 };
+}
+
+/** Who owes `me` and whom `me` owes, using the simplified settle-up plan. */
+export function myDebts(transfers: Transfer[], me: Id): { other: Id; amount: Paise; owesMe: boolean }[] {
+  return transfers
+    .filter(t => t.from === me || t.to === me)
+    .map(t => ({ other: t.from === me ? t.to : t.from, amount: t.amount, owesMe: t.to === me }));
+}

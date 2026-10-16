@@ -15,9 +15,7 @@ appId: ${APP_ID}
 - evalScript: ${output.task = 'E2E task ' + Date.now()}
 - inputText: ${output.task}
 - hideKeyboard
-- tapOn:
-    text: "Add task"
-    index: 1
+- tapOn: "Save task"
 - assertVisible: ${output.task}
 - waitForAnimationToEnd
 - tapOn:
