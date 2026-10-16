@@ -1,0 +1,27 @@
+appId: ${APP_ID}
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "tab-home"
+    timeout: 60000  # cold start in a debug build
+- waitForAnimationToEnd
+- tapOn:
+    id: "tab-money"
+    retryTapIfNoChange: true
+- tapOn: "Add expense"
+- tapOn:
+    id: "field-title"
+- evalScript: ${output.title = 'E2E pizza ' + Date.now()}
+- inputText: ${output.title}
+- hideKeyboard
+- tapOn:
+    id: "field-amount"
+- inputText: "640"
+- hideKeyboard
+- scrollUntilVisible:
+    element: "Save expense"
+- tapOn: "Save expense"
+- scrollUntilVisible:
+    element: ${output.title}
+- assertVisible: ${output.title}

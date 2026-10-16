@@ -16,12 +16,12 @@ export function LoadingState() {
   );
 }
 
-export function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+export function ErrorState({ title = "Couldn't load your flat", message, onRetry }: { title?: string; message: string; onRetry: () => void }) {
   const c = useColors();
   return (
     <View style={[styles.center, { backgroundColor: c.bg }]}>
       <Icon as={CloudOff} size="lg" color={c.muted} />
-      <T strong size={17}>Couldn't load your flat</T>
+      <T strong size={17}>{title}</T>
       <T muted>{message}</T>
       <Button title="Try again" onPress={onRetry} />
     </View>

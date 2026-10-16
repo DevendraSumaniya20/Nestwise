@@ -50,6 +50,7 @@ export function RootTabs() {
             component={component}
             options={{
               title: t.tabs[key],
+              tabBarButtonTestID: `tab-${key}`,
               tabBarIcon: tabIcon(Svg),
             }}
           />

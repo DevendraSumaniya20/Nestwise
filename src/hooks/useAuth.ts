@@ -24,7 +24,7 @@ export function useAuth() {
     }),
     [dispatch],
   );
-  return { user, ready: status === 'ready', ...actions };
+  return { user, ready: status === 'ready', offline: status === 'offline', ...actions };
 }
 
 // unwrap() rejects with the rejectValue string; turn it back into an Error for useSubmit.

@@ -1,0 +1,43 @@
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+- extendedWaitUntil:
+    visible: "Welcome back"
+    timeout: 60000  # debug builds load JS from Metro on a cold start
+- evalScript: ${output.email = 'e2e' + Date.now() + '@test.nestwise'}
+- tapOn: "New here\\? Create an account"
+- assertVisible: "Create your account"
+- tapOn:
+    id: "field-your-name"
+- inputText: "E2E Tester"
+- hideKeyboard
+- tapOn:
+    id: "field-email"
+- inputText: ${output.email}
+- hideKeyboard
+- tapOn:
+    id: "field-new-password-8-characters"
+- inputText: "e2e-password"
+- hideKeyboard
+- tapOn: "Create account"
+- extendedWaitUntil:
+    visible: "Set up your flat"
+    timeout: 20000
+- tapOn:
+    id: "field-flat-name"
+- inputText: "E2E Flat"
+- hideKeyboard
+- tapOn: "Create flat"
+- extendedWaitUntil:
+    visible: "E2E Flat"
+    timeout: 20000
+- assertVisible: "1 flatmates · signed in as E2E Tester"
+- waitForAnimationToEnd
+- tapOn:
+    id: "tab-flat"
+    retryTapIfNoChange: true
+- scrollUntilVisible:
+    element: "INVITE FLATMATES"
+- assertVisible: "INVITE FLATMATES"

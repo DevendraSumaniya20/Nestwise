@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { addDays, isIsoDate, relativeDay } from '../utils/dates';
 import type { TaskStatus } from '../types';
-import { AddCard, Button, Card, Chip, Empty, ErrorText, Field, Label, MemberPicker, Screen, T, Row } from '../components';
+import { AddCard, Button, Chip, ErrorText, Field, Label, ListScreen, MemberPicker, Row, T } from '../components';
 import { useColors, useFlat } from '../hooks';
 import { useT } from '../i18n';
 
@@ -20,33 +20,30 @@ export function TasksScreen() {
     (a, b) => Number(a.status === 'done') - Number(b.status === 'done') || a.due.localeCompare(b.due),
   );
   return (
-    <Screen title={t.tasks.title} subtitle={t.tasks.subtitle} onRefresh={refresh}>
-      <AddCard title={t.tasks.add}>{close => <AddTask onDone={close} />}</AddCard>
-      <Card title={t.tasks.all}>
-        {tasks.length === 0 ? (
-          <Empty>{t.tasks.none}</Empty>
-        ) : (
-          tasks.map(task => {
-            const overdue = task.status !== 'done' && task.due < today;
-            return (
-              <Row key={task.id}>
-                <View style={styles.flex}>
-                  <T muted={task.status === 'done'}>{task.title}</T>
-                  <T muted size={13} color={overdue ? c.bad : undefined}>
-                    {nameOf(task.assignee)} · due {relativeDay(task.due, today)}
-                  </T>
-                </View>
-                <Chip
-                  label={STATUS[task.status]}
-                  selected={task.status === 'done'}
-                  onPress={() => dispatch({ type: 'cycleTask', id: task.id })}
-                />
-              </Row>
-            );
-          })
-        )}
-      </Card>
-    </Screen>
+    <ListScreen
+      title={t.tasks.title}
+      subtitle={t.tasks.subtitle}
+      onRefresh={refresh}
+      header={<AddCard title={t.tasks.add}>{close => <AddTask onDone={close} />}</AddCard>}
+      listTitle={t.tasks.all}
+      emptyText={t.tasks.none}
+      data={tasks}
+      keyExtractor={task => task.id}
+      renderItem={task => {
+        const overdue = task.status !== 'done' && task.due < today;
+        return (
+          <Row>
+            <View style={styles.flex}>
+              <T muted={task.status === 'done'}>{task.title}</T>
+              <T muted size={13} color={overdue ? c.bad : undefined}>
+                {nameOf(task.assignee)} · due {relativeDay(task.due, today)}
+              </T>
+            </View>
+            <Chip label={STATUS[task.status]} selected={task.status === 'done'} onPress={() => dispatch({ type: 'cycleTask', id: task.id })} />
+          </Row>
+        );
+      }}
+    />
   );
 }
 

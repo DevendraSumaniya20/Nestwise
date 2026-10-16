@@ -7,7 +7,10 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "start": "react-native start",
-    "test": "jest"
+    "test": "jest",
+    "e2e:android": "maestro test -e APP_ID=com.nestwise .maestro",
+    "e2e:ios": "maestro test -e APP_ID=org.reactjs.native.example.Nestwise .maestro",
+    "e2e:build:android": "cd android && ./gradlew assembleRelease && adb install -r app/build/outputs/apk/release/app-release.apk"
   },
   "dependencies": {
     "@react-native/new-app-screen": "0.88.0",
@@ -15,6 +18,7 @@
     "@react-navigation/native": "^7.5.1",
     "@react-navigation/native-stack": "^7.21.0",
     "@reduxjs/toolkit": "^2.13.0",
+    "@shopify/flash-list": "^2.3.3",
     "lucide-react-native": "^1.58.0",
     "react": "19.3.0",
     "react-native": "0.88.0",
@@ -40,6 +44,7 @@
     "@react-native/jest-preset": "0.88.0",
     "@react-native/metro-config": "0.88.0",
     "@react-native/typescript-config": "0.88.0",
+    "@testing-library/react-native": "^14.1.0",
     "@types/jest": "^29.5.13",
     "@types/react": "^19.2.0",
     "@types/react-test-renderer": "^19.1.0",

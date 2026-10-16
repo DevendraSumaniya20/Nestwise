@@ -1,0 +1,23 @@
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+- extendedWaitUntil:
+    visible: "Welcome back"
+    timeout: 60000  # debug builds load JS from Metro on a cold start
+- tapOn: "Log in"
+- assertVisible: "Enter your email and password."
+- tapOn:
+    id: "field-email"
+- inputText: "demo@nestwise.app"
+- hideKeyboard
+- tapOn:
+    id: "field-password"
+- inputText: "wrong-password"
+- hideKeyboard
+- tapOn: "Show password"
+- assertVisible: "wrong-password"
+- tapOn: "Hide password"
+- tapOn: "Log in"
+- assertVisible: "Email or password is incorrect."

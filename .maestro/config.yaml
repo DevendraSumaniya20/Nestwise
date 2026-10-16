@@ -1,0 +1,12 @@
+# Run in order: npm run e2e:android (or e2e:ios). Needs the API on :4000 and Metro running.
+flows:
+  - "*.yaml"
+executionOrder:
+  continueOnFailure: false
+  flowsOrder:
+    - 01_auth_validation
+    - 02_register_and_create_flat
+    - 03_login_and_tabs
+    - 04_money_expense
+    - 05_tasks_and_groceries
+    - 06_logout

@@ -1,10 +1,10 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { type AuthResult, authApi, loadTokens, setTokens, type User } from '../services/api';
+import { ApiError, type AuthResult, authApi, loadTokens, setTokens, type User } from '../services/api';
 
 type AuthState = {
   user: User | null;
-  /** 'checking' until the saved session in the Keychain/Keystore has been tried. */
-  status: 'checking' | 'ready';
+  /** 'checking' until the saved session has been tried; 'offline' if the server couldn't be reached. */
+  status: 'checking' | 'ready' | 'offline';
 };
 
 const initialState: AuthState = { user: null, status: 'checking' };
@@ -17,15 +17,19 @@ async function accept(r: AuthResult): Promise<User> {
 }
 
 /** Restores the session from secure storage; the API client refreshes an expired access token itself. */
-export const bootstrap = createAsyncThunk('auth/bootstrap', async () => {
-  if (!(await loadTokens())) return null;
-  try {
-    return (await authApi.me()).user;
-  } catch {
-    // Offline keeps nobody signed in on screen, but tokens stay saved for the next launch.
-    return null;
-  }
-});
+export const bootstrap = createAsyncThunk<User | null, void, { rejectValue: 'offline' }>(
+  'auth/bootstrap',
+  async (_, { rejectWithValue }) => {
+    if (!(await loadTokens())) return null;
+    try {
+      return (await authApi.me()).user;
+    } catch (e) {
+      // Offline: keep the saved session and let the user retry, instead of showing login.
+      if (e instanceof ApiError && e.status === 0) return rejectWithValue('offline');
+      return null;
+    }
+  },
+);
 
 export const login = createAsyncThunk<User, { email: string; password: string }, { rejectValue: string }>(
   'auth/login',
@@ -70,8 +74,11 @@ const authSlice = createSlice({
       state.user = a.payload;
       state.status = 'ready';
     });
-    b.addCase(bootstrap.rejected, state => {
-      state.status = 'ready';
+    b.addCase(bootstrap.pending, state => {
+      state.status = 'checking';
+    });
+    b.addCase(bootstrap.rejected, (state, a) => {
+      state.status = a.payload === 'offline' ? 'offline' : 'ready';
     });
     for (const thunk of [login, register, resetPassword]) {
       b.addCase(thunk.fulfilled, (state, a) => {

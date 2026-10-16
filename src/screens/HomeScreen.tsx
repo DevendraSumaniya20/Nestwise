@@ -10,6 +10,7 @@ import { space } from '../constants';
 import { useColors, useFlat } from '../hooks';
 import { useT } from '../i18n';
 
+const MAX_REMINDERS = 5;
 const ICON = { grocery: ShoppingCart, bill: Zap, task: CircleCheck } as const;
 
 export function HomeScreen() {
@@ -33,7 +34,7 @@ export function HomeScreen() {
         {feed.length === 0 ? (
           <Empty>{t.home.allClear}</Empty>
         ) : (
-          feed.map(r => (
+          feed.slice(0, MAX_REMINDERS).map(r => (
             <Row key={r.id}>
               <IconBadge as={ICON[r.kind]} color={r.inDays < 0 ? c.bad : r.kind === 'bill' ? c.warn : c.accent} />
               <View style={styles.flex}>
@@ -43,6 +44,7 @@ export function HomeScreen() {
             </Row>
           ))
         )}
+        {feed.length > MAX_REMINDERS ? <T muted size={13}>+{feed.length - MAX_REMINDERS} more on the Food and Tasks tabs</T> : null}
       </Card>
 
       <Card title={t.home.money}>

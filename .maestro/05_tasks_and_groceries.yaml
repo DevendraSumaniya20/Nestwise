@@ -1,0 +1,33 @@
+appId: ${APP_ID}
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "tab-home"
+    timeout: 60000  # cold start in a debug build
+- waitForAnimationToEnd
+- tapOn:
+    id: "tab-tasks"
+    retryTapIfNoChange: true
+- tapOn: "Add task"
+- tapOn:
+    id: "field-task"
+- evalScript: ${output.task = 'E2E task ' + Date.now()}
+- inputText: ${output.task}
+- hideKeyboard
+- tapOn:
+    text: "Add task"
+    index: 1
+- assertVisible: ${output.task}
+- waitForAnimationToEnd
+- tapOn:
+    id: "tab-food"
+    retryTapIfNoChange: true
+- runFlow:
+    when:
+      visible: "Add ingredients for .* to list"
+    commands:
+      - tapOn: "Add ingredients for .* to list"
+- scrollUntilVisible:
+    element: "GROCERY LIST"
+- assertVisible: ".* bought"

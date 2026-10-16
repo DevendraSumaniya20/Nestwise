@@ -4,7 +4,7 @@ import { netBalances, settleUp } from '../services/balances';
 import { isIsoDate, shortDate } from '../utils/dates';
 import { EXPENSE_CATEGORIES, type ExpenseCategory } from '../types';
 import { formatInr, parseRupees } from '../utils/money';
-import { AddCard, Button, Card, Chip, Chips, Empty, ErrorText, Field, Label, MemberPicker, Row, Screen, T } from '../components';
+import { AddCard, Button, Card, Chip, Chips, Empty, ErrorText, Field, Label, ListScreen, MemberPicker, Row, T } from '../components';
 import { useColors, useFlat } from '../hooks';
 import { useT } from '../i18n';
 
@@ -16,57 +16,59 @@ export function MoneyScreen() {
   const transfers = settleUp(net);
 
   return (
-    <Screen title={t.money.title} subtitle={t.money.subtitle} onRefresh={refresh}>
-      <AddCard title={t.money.add}>{close => <AddExpense onDone={close} />}</AddCard>
-
-      <Card title={t.money.balances}>
-        {state.members
-          .filter(m => active.includes(m) || net[m.id] !== 0)
-          .map(m => (
-            <Row key={m.id}>
-              <View style={styles.flex}>
-                <T>{m.name}{m.moveOut ? ' (moved out)' : ''}</T>
-              </View>
-              <T strong color={net[m.id] > 0 ? c.good : net[m.id] < 0 ? c.bad : c.muted}>
-                {net[m.id] > 0 ? `gets ${formatInr(net[m.id])}` : net[m.id] < 0 ? `owes ${formatInr(-net[m.id])}` : 'settled'}
-              </T>
-            </Row>
-          ))}
-      </Card>
-
-      <Card title={t.money.settleUp}>
-        {transfers.length === 0 ? (
-          <Empty>{t.money.square}</Empty>
-        ) : (
-          transfers.map(t => (
-            <Row key={`${t.from}-${t.to}`}>
-              <View style={styles.flex}>
-                <T>{nameOf(t.from)} → {nameOf(t.to)}</T>
-              </View>
-              <T strong>{formatInr(t.amount)}</T>
-            </Row>
-          ))
-        )}
-      </Card>
-
-      <Card title={t.money.expenses}>
-        {state.expenses.length === 0 ? (
-          <Empty>{t.money.none}</Empty>
-        ) : (
-          state.expenses.map(e => (
-            <Row key={e.id}>
-              <View style={styles.flex}>
-                <T>{e.title}</T>
-                <T muted size={13}>
-                  {e.category} · {shortDate(e.date)} · paid by {Object.keys(e.paid).map(nameOf).join(', ')}
-                </T>
-              </View>
-              <T strong>{formatInr(e.amount)}</T>
-            </Row>
-          ))
-        )}
-      </Card>
-    </Screen>
+    <ListScreen
+      title={t.money.title}
+      subtitle={t.money.subtitle}
+      onRefresh={refresh}
+      header={
+        <>
+          <AddCard title={t.money.add}>{close => <AddExpense onDone={close} />}</AddCard>
+          <Card title={t.money.balances}>
+            {state.members
+              .filter(m => active.includes(m) || net[m.id] !== 0)
+              .map(m => (
+                <Row key={m.id}>
+                  <View style={styles.flex}>
+                    <T>{m.name}{m.moveOut ? ' (moved out)' : ''}</T>
+                  </View>
+                  <T strong color={net[m.id] > 0 ? c.good : net[m.id] < 0 ? c.bad : c.muted}>
+                    {net[m.id] > 0 ? `gets ${formatInr(net[m.id])}` : net[m.id] < 0 ? `owes ${formatInr(-net[m.id])}` : 'settled'}
+                  </T>
+                </Row>
+              ))}
+          </Card>
+          <Card title={t.money.settleUp}>
+            {transfers.length === 0 ? (
+              <Empty>{t.money.square}</Empty>
+            ) : (
+              transfers.map(x => (
+                <Row key={`${x.from}-${x.to}`}>
+                  <View style={styles.flex}>
+                    <T>{nameOf(x.from)} → {nameOf(x.to)}</T>
+                  </View>
+                  <T strong>{formatInr(x.amount)}</T>
+                </Row>
+              ))
+            )}
+          </Card>
+        </>
+      }
+      listTitle={t.money.expenses}
+      emptyText={t.money.none}
+      data={state.expenses}
+      keyExtractor={e => e.id}
+      renderItem={e => (
+        <Row>
+          <View style={styles.flex}>
+            <T>{e.title}</T>
+            <T muted size={13}>
+              {e.category} · {shortDate(e.date)} · paid by {Object.keys(e.paid).map(nameOf).join(', ')}
+            </T>
+          </View>
+          <T strong>{formatInr(e.amount)}</T>
+        </Row>
+      )}
+    />
   );
 }
 

@@ -20,6 +20,37 @@ export function Screen({
 }) {
   const c = useColors();
   const insets = useSafeAreaInsets();
+  const { refreshing, refresh } = useRefresh(onRefresh);
+  return (
+    <ScrollView
+      style={{ backgroundColor: c.bg }}
+      contentContainerStyle={[styles.screen, { paddingTop: insets.top + space.md }]}
+      keyboardShouldPersistTaps="handled"
+      refreshControl={refresh ? <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.accent} colors={[c.accent]} /> : undefined}
+    >
+      <ScreenHeader title={title} subtitle={subtitle} right={right} />
+      {children}
+    </ScrollView>
+  );
+}
+
+export function ScreenHeader({ title, subtitle, right }: { title: string; subtitle?: string; right?: React.ReactNode }) {
+  const c = useColors();
+  return (
+    <View style={styles.header}>
+      <View style={styles.flex}>
+        {subtitle ? <Text style={[styles.eyebrow, { color: c.muted }]}>{subtitle}</Text> : null}
+        <Text style={[styles.title, { color: c.ink }]} accessibilityRole="header">
+          {title}
+        </Text>
+      </View>
+      {right}
+    </View>
+  );
+}
+
+/** Pull-to-refresh state for a screen-level scroller. */
+export function useRefresh(onRefresh?: () => Promise<unknown>) {
   const [refreshing, setRefreshing] = useState(false);
   const refresh = onRefresh
     ? () => {
@@ -29,25 +60,7 @@ export function Screen({
           .finally(() => setRefreshing(false));
       }
     : undefined;
-  return (
-    <ScrollView
-      style={{ backgroundColor: c.bg }}
-      contentContainerStyle={[styles.screen, { paddingTop: insets.top + space.md }]}
-      keyboardShouldPersistTaps="handled"
-      refreshControl={refresh ? <RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={c.accent} colors={[c.accent]} /> : undefined}
-    >
-      <View style={styles.header}>
-        <View style={styles.flex}>
-          {subtitle ? <Text style={[styles.eyebrow, { color: c.muted }]}>{subtitle}</Text> : null}
-          <Text style={[styles.title, { color: c.ink }]} accessibilityRole="header">
-            {title}
-          </Text>
-        </View>
-        {right}
-      </View>
-      {children}
-    </ScrollView>
-  );
+  return { refreshing, refresh };
 }
 
 const styles = StyleSheet.create({

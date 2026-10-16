@@ -14,6 +14,7 @@ export function Field({ label, secureTextEntry, ...props }: TextInputProps & { l
       <Label>{label}</Label>
       <View>
         <TextInput
+          testID={`field-${slug(label)}`}
           accessibilityLabel={label}
           placeholderTextColor={c.muted}
           secureTextEntry={secureTextEntry && hidden}
@@ -39,6 +40,9 @@ export function Field({ label, secureTextEntry, ...props }: TextInputProps & { l
     </View>
   );
 }
+
+/** "New password (8+ characters)" -> "new-password-8-characters": stable ids for E2E tests. */
+const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
 export function Label({ children }: { children: React.ReactNode }) {
   const c = useColors();

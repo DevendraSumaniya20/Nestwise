@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { Alert } from 'react-native';
 import { useAppDispatch, useAppSelector } from '../store';
 import type { Action } from '../store/actions';
@@ -8,7 +8,12 @@ import { today } from '../utils/dates';
 /** The loaded flat plus helpers. Only use under the flat gate (data is loaded). */
 export function useFlat() {
   const appDispatch = useAppDispatch();
-  const { data, flatId } = useAppSelector(s => s.flat);
+  const live = useAppSelector(s => s.flat);
+  // On sign-out the flat is cleared in the same update that unmounts the tabs; a tab can
+  // render once more before it unmounts, so it keeps the last flat instead of crashing.
+  const last = useRef(live);
+  if (live.data) last.current = live;
+  const { data, flatId } = live.data ? live : last.current;
   const on = today();
 
   const ctx = useMemo(() => {

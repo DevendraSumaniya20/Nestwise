@@ -90,6 +90,18 @@ AsyncStorage · Montserrat.
 ### Phase 4 — AI
 - "Plan dinners for 4 under ₹2,500, mostly veg" -> meals -> grocery list -> cost estimate -> assign
 
+## Testing
+
+| Layer | Where | Run |
+|---|---|---|
+| App unit/component (Jest + RNTL) | `src/**/__tests__` | `npm test` |
+| API unit (domain, crypto) | `backend/src/**/*.test.ts` | `cd ../backend && npm test` |
+| API integration (real HTTP + MySQL, throwaway users) | `backend/src/main/api.int.test.ts` | `npm run test:int` |
+| E2E (Maestro, Android release build) | `.maestro/` | `npm run e2e:build:android && npm run e2e:android` |
+
+E2E needs the API running (`cd ../backend && npm run dev`). Test accounts use `@test.nestwise`
+emails; remove them with `cd ../backend && npm run db:cleanup-tests`.
+
 ## Run
 
 ```

@@ -1,0 +1,22 @@
+appId: ${APP_ID}
+---
+- launchApp
+- extendedWaitUntil:
+    visible:
+      id: "tab-home"
+    timeout: 60000  # cold start in a debug build
+- waitForAnimationToEnd
+- tapOn:
+    id: "tab-flat"
+    retryTapIfNoChange: true
+- scrollUntilVisible:
+    element: "Log out"
+- tapOn: "Log out"
+- extendedWaitUntil:
+    visible: "Welcome back"
+    timeout: 20000
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: "Welcome back"
+    timeout: 60000  # cold start in a debug build

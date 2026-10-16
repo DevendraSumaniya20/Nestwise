@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { addDays, isIsoDate, relativeDay, shortDate } from '../utils/dates';
 import { RECIPES } from '../data/recipes';
-import { AddCard, Button, Card, Checkbox, Chip, Chips, Empty, ErrorText, Field, Label, Row, Screen, T } from '../components';
+import { AddCard, Button, Card, Checkbox, Chip, Chips, ErrorText, Field, Label, ListScreen, Row, T } from '../components';
 import { space } from '../constants';
 import { useFlat } from '../hooks';
 import { useT } from '../i18n';
@@ -25,7 +25,12 @@ export function FoodScreen() {
   };
 
   return (
-    <Screen title={t.food.title} subtitle={t.food.subtitle} onRefresh={refresh}>
+    <ListScreen
+      title={t.food.title}
+      subtitle={t.food.subtitle}
+      onRefresh={refresh}
+      header={
+      <>
       <Card title={t.food.week}>
         {days.map(d => {
           const meal = state.meals.find(m => m.date === d);
@@ -68,40 +73,41 @@ export function FoodScreen() {
         />
       </Card>
 
-      <Card title={t.food.list}>
-        {groceries.length === 0 ? (
-          <Empty>{t.food.listEmpty}</Empty>
-        ) : (
-          <>
-            <Label>Give every unassigned item to</Label>
-            <Chips>
-              {active.map(m => (
-                <Chip key={m.id} label={m.name} onPress={() => dispatch({ type: 'assignAllOpen', assignee: m.id })} />
-              ))}
-            </Chips>
-            {groceries.map(g => (
-              <Row key={g.id}>
-                <Checkbox checked={g.bought} label={`${g.name} bought`} onPress={() => dispatch({ type: 'toggleBought', id: g.id })} />
-                <View style={styles.flex}>
-                  <T muted={g.bought}>{g.name} · {g.qty} {g.unit}</T>
-                  <T muted size={12}>
-                    {g.bought ? 'Bought' : `Needed ${relativeDay(g.neededBy, today)}`}
-                    {g.forMeals.length ? ` · ${g.forMeals.join(', ')}` : ''}
-                  </T>
-                </View>
-                <Chip
-                  label={nameOf(g.assignee)}
-                  selected={!!g.assignee}
-                  onPress={() => dispatch({ type: 'assignGrocery', id: g.id, assignee: nextAssignee(g.assignee) })}
-                />
-              </Row>
+      {groceries.length ? (
+        <Card title="Assign shopping">
+          <Label>Give every unassigned item to</Label>
+          <Chips>
+            {active.map(m => (
+              <Chip key={m.id} label={m.name} onPress={() => dispatch({ type: 'assignAllOpen', assignee: m.id })} />
             ))}
-          </>
-        )}
-      </Card>
-
-      <AddCard title={t.food.add}>{close => <AddGrocery onDone={close} />}</AddCard>
-    </Screen>
+          </Chips>
+        </Card>
+      ) : null}
+      </>
+      }
+      listTitle={t.food.list}
+      emptyText={t.food.listEmpty}
+      data={groceries}
+      keyExtractor={g => g.id}
+      renderItem={g => (
+        <Row>
+          <Checkbox checked={g.bought} label={`${g.name} bought`} onPress={() => dispatch({ type: 'toggleBought', id: g.id })} />
+          <View style={styles.flex}>
+            <T muted={g.bought}>{g.name} · {g.qty} {g.unit}</T>
+            <T muted size={12}>
+              {g.bought ? 'Bought' : `Needed ${relativeDay(g.neededBy, today)}`}
+              {g.forMeals.length ? ` · ${g.forMeals.join(', ')}` : ''}
+            </T>
+          </View>
+          <Chip
+            label={nameOf(g.assignee)}
+            selected={!!g.assignee}
+            onPress={() => dispatch({ type: 'assignGrocery', id: g.id, assignee: nextAssignee(g.assignee) })}
+          />
+        </Row>
+      )}
+      footer={<AddCard title={t.food.add}>{close => <AddGrocery onDone={close} />}</AddCard>}
+    />
   );
 }
 

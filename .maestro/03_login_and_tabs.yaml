@@ -1,0 +1,47 @@
+appId: ${APP_ID}
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+- extendedWaitUntil:
+    visible: "Welcome back"
+    timeout: 60000  # debug builds load JS from Metro on a cold start
+- tapOn:
+    id: "field-email"
+- inputText: "demo@nestwise.app"
+- hideKeyboard
+- tapOn:
+    id: "field-password"
+- inputText: "nestwise123"
+- hideKeyboard
+- tapOn: "Log in"
+- extendedWaitUntil:
+    visible: "Sunrise Apartment"
+    timeout: 20000
+- assertVisible: "DON'T FORGET"
+# Session survives a cold start (tokens come back from Keychain/Keystore).
+- stopApp
+- launchApp
+- extendedWaitUntil:
+    visible: "Sunrise Apartment"
+    timeout: 60000  # cold start in a debug build
+- waitForAnimationToEnd
+- tapOn:
+    id: "tab-money"
+    retryTapIfNoChange: true
+- assertVisible: "BALANCES"
+- waitForAnimationToEnd
+- tapOn:
+    id: "tab-food"
+    retryTapIfNoChange: true
+- assertVisible: "THIS WEEK'S DINNERS"
+- waitForAnimationToEnd
+- tapOn:
+    id: "tab-tasks"
+    retryTapIfNoChange: true
+- assertVisible: "ALL TASKS"
+- waitForAnimationToEnd
+- tapOn:
+    id: "tab-flat"
+    retryTapIfNoChange: true
+- assertVisible: "PENDING BILLS"

@@ -23,13 +23,14 @@ const AuthStack = createNativeStackNavigator<AuthStackParams>();
 export function RootNavigator() {
   const c = useColors();
   const dispatch = useAppDispatch();
-  const { user, ready } = useAuth();
+  const { user, ready, offline } = useAuth();
   const base = useColorScheme() === 'dark' ? DarkTheme : DefaultTheme;
 
   useEffect(() => {
     dispatch(bootstrap());
   }, [dispatch]);
 
+  if (offline) return <ErrorState title="You're offline" message="Cannot reach the Nestwise server. Check your connection." onRetry={() => dispatch(bootstrap())} />;
   if (!ready) return <LoadingState />;
 
   return (
