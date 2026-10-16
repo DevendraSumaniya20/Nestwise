@@ -15,7 +15,7 @@ function start(): void {
 
   const db = createPrismaClient(env.databaseUrl);
   // shortcut: reset codes are printed here; wire an SMTP sender before real users.
-  const auth = new AuthService(db, env.sessionDays, (email, code) => {
+  const auth = new AuthService(db, env.sessionDays, env.accessMinutes, (email, code) => {
     console.log(`[password-reset] code for ${email}: ${code} (valid 15 minutes)`);
   });
   const app = createApp({ auth, flats: new FlatService(db) });

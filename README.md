@@ -23,10 +23,13 @@ Forgot-password codes are printed in the server terminal (no email yet).
 
 ## Endpoints
 
-Auth (rate limited): `POST /auth/register`, `/auth/login`, `/auth/forgot-password`,
+Auth (rate limited): `POST /auth/register`, `/auth/login`, `/auth/refresh`, `/auth/forgot-password`,
 `/auth/reset-password`, `/auth/logout` · `GET /me`.
 
-Everything else needs `Authorization: Bearer <token>`. Flat mutations return the full flat state.
+Login/register/reset return `accessToken` (15 min) + `refreshToken` (30 days). `POST /auth/refresh {refreshToken}`
+rotates both; replaying an old refresh token revokes the session.
+
+Everything else needs `Authorization: Bearer <accessToken>`. Flat mutations return the full flat state.
 
 | Area | Endpoints |
 |---|---|

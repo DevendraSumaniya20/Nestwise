@@ -14,7 +14,8 @@ const RESET_MINUTES = 15;
 const RESET_MAX_ATTEMPTS = 5;
 
 export type PublicUser = { id: string; email: string; name: string };
-export type AuthResult = { token: string; user: PublicUser };
+export type TokenPair = { accessToken: string; refreshToken: string; accessExpiresAt: string };
+export type AuthResult = TokenPair & { user: PublicUser };
 
 const publicUser = (u: { id: string; email: string; name: string }): PublicUser => ({
   id: u.id,
@@ -28,6 +29,7 @@ export class AuthService {
   constructor(
     private readonly db: PrismaClient,
     private readonly sessionDays: number,
+    private readonly accessMinutes: number,
     /** Where reset codes go until email delivery exists. */
     private readonly deliverResetCode: (email: string, code: string) => void,
   ) {}
@@ -40,7 +42,7 @@ export class AuthService {
     const user = await this.db.user.create({
       data: { id: newId(), email, name: input.name.trim(), passwordHash: await hashPassword(input.password) },
     });
-    return { token: await this.createSession(user.id), user: publicUser(user) };
+    return { ...(await this.createSession(user.id)), user: publicUser(user) };
   }
 
   async login(input: { email: string; password: string }): Promise<AuthResult> {
@@ -49,21 +51,50 @@ export class AuthService {
     if (!user || !(await verifyPassword(input.password, user.passwordHash))) {
       throw new AppError('unauthorized', 'INVALID_CREDENTIALS', 'Email or password is incorrect.');
     }
-    return { token: await this.createSession(user.id), user: publicUser(user) };
+    return { ...(await this.createSession(user.id)), user: publicUser(user) };
   }
 
-  async logout(token: string): Promise<void> {
-    await this.db.session.deleteMany({ where: { tokenHash: sha256(token) } });
+  async logout(accessToken: string): Promise<void> {
+    await this.db.session.deleteMany({ where: { accessHash: sha256(accessToken) } });
   }
 
-  /** Resolves a bearer token to its user, or null if unknown/expired. */
-  async authenticate(token: string): Promise<PublicUser | null> {
+  /** Resolves an access token to its user, or null if unknown/expired. */
+  async authenticate(accessToken: string): Promise<PublicUser | null> {
     const session = await this.db.session.findUnique({
-      where: { tokenHash: sha256(token) },
+      where: { accessHash: sha256(accessToken) },
       include: { user: true },
     });
-    if (!session || session.expiresAt < new Date()) return null;
+    if (!session || session.accessExpiresAt < new Date()) return null;
     return publicUser(session.user);
+  }
+
+  /**
+   * Swaps a refresh token for a new access + refresh pair (rotation).
+   * Presenting an already-rotated refresh token means it leaked: the session is revoked.
+   */
+  async refresh(refreshToken: string): Promise<AuthResult> {
+    const hash = sha256(refreshToken);
+    const expired = new AppError('unauthorized', 'SESSION_EXPIRED', 'Your session has ended. Please log in again.');
+    const session = await this.db.session.findUnique({ where: { refreshHash: hash }, include: { user: true } });
+    if (!session) {
+      await this.db.session.deleteMany({ where: { prevRefreshHash: hash } });
+      throw expired;
+    }
+    if (session.expiresAt < new Date()) {
+      await this.db.session.delete({ where: { id: session.id } });
+      throw expired;
+    }
+    const pair = this.newPair();
+    await this.db.session.update({
+      where: { id: session.id },
+      data: {
+        accessHash: sha256(pair.accessToken),
+        accessExpiresAt: new Date(pair.accessExpiresAt),
+        refreshHash: sha256(pair.refreshToken),
+        prevRefreshHash: hash,
+      },
+    });
+    return { ...pair, user: publicUser(session.user) };
   }
 
   /** Always succeeds from the caller's view, so it never reveals whether an email is registered. */
@@ -105,19 +136,29 @@ export class AuthService {
       // A password reset logs out every device.
       this.db.session.deleteMany({ where: { userId: user.id } }),
     ]);
-    return { token: await this.createSession(user.id), user: publicUser(user) };
+    return { ...(await this.createSession(user.id)), user: publicUser(user) };
   }
 
-  private async createSession(userId: string): Promise<string> {
-    const token = newSessionToken();
+  private newPair(): TokenPair {
+    return {
+      accessToken: newSessionToken(),
+      refreshToken: newSessionToken(),
+      accessExpiresAt: new Date(Date.now() + this.accessMinutes * 60_000).toISOString(),
+    };
+  }
+
+  private async createSession(userId: string): Promise<TokenPair> {
+    const pair = this.newPair();
     await this.db.session.create({
       data: {
         id: newId(),
         userId,
-        tokenHash: sha256(token),
+        accessHash: sha256(pair.accessToken),
+        accessExpiresAt: new Date(pair.accessExpiresAt),
+        refreshHash: sha256(pair.refreshToken),
         expiresAt: new Date(Date.now() + this.sessionDays * 86_400_000),
       },
     });
-    return token;
+    return pair;
   }
 }

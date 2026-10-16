@@ -11,6 +11,7 @@ const name = z.string().trim().min(1).max(80);
 
 export const registerBody = z.object({ email, name, password });
 export const loginBody = z.object({ email, password: z.string().min(1).max(128) });
+export const refreshBody = z.object({ refreshToken: z.string().min(20).max(200) });
 export const forgotBody = z.object({ email });
 export const resetBody = z.object({ email, code: z.string().regex(/^\d{6}$/, 'must be 6 digits'), password });
 

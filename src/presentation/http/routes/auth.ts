@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { rateLimit } from 'express-rate-limit';
 import type { AuthService } from '../../../application/auth-service.ts';
 import { bearerToken, currentUser, requireAuth } from '../middleware/auth.ts';
-import { forgotBody, loginBody, registerBody, resetBody } from '../schemas/index.ts';
+import { forgotBody, loginBody, refreshBody, registerBody, resetBody } from '../schemas/index.ts';
 
 export function authRouter(auth: AuthService): Router {
   const r = Router();
@@ -20,6 +20,9 @@ export function authRouter(auth: AuthService): Router {
   });
   r.post('/auth/login', limited, async (req, res) => {
     res.json(await auth.login(loginBody.parse(req.body)));
+  });
+  r.post('/auth/refresh', limited, async (req, res) => {
+    res.json(await auth.refresh(refreshBody.parse(req.body).refreshToken));
   });
   r.post('/auth/forgot-password', limited, async (req, res) => {
     await auth.forgotPassword(forgotBody.parse(req.body).email);

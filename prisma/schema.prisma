@@ -24,17 +24,23 @@ model User {
   memberships    Member[]
 }
 
-/// Opaque bearer tokens; only the SHA-256 of the token is stored.
+/// One signed-in device. Tokens are opaque; only their SHA-256 is stored.
+/// The access token is short-lived; the refresh token rotates on every use.
 model Session {
-  id        String   @id @db.VarChar(32)
-  userId    String   @db.VarChar(32)
-  tokenHash String   @unique @db.Char(64)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id               String   @id @db.VarChar(32)
+  userId           String   @db.VarChar(32)
+  accessHash       String   @unique @db.Char(64)
+  accessExpiresAt  DateTime
+  refreshHash      String   @unique @db.Char(64)
+  /// The refresh token this one replaced; seeing it again means it was stolen.
+  prevRefreshHash  String?  @db.Char(64)
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([prevRefreshHash])
 }
 
 model PasswordReset {

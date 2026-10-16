@@ -8,7 +8,7 @@ import { createPrismaClient } from '../src/infrastructure/prisma.ts';
 
 const env = loadEnv();
 const db = createPrismaClient(env.databaseUrl);
-const auth = new AuthService(db, env.sessionDays, () => {});
+const auth = new AuthService(db, env.sessionDays, env.accessMinutes, () => {});
 const flats = new FlatService(db);
 const today = new Date().toISOString().slice(0, 10);
 
