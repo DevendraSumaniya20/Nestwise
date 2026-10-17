@@ -1,0 +1,202 @@
+generator client {
+  provider            = "prisma-client"
+  output              = "../generated/prisma"
+  moduleFormat        = "esm"
+  importFileExtension = "ts"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+// ── Accounts ──────────────────────────────────────────────
+
+model User {
+  id           String   @id @db.VarChar(32)
+  email        String   @unique @db.VarChar(254)
+  name         String   @db.VarChar(80)
+  /// scrypt: "salt:hash", both hex.
+  passwordHash String   @db.VarChar(200)
+  createdAt    DateTime @default(now())
+
+  sessions       Session[]
+  passwordResets PasswordReset[]
+  memberships    Member[]
+}
+
+/// One signed-in device. Tokens are opaque; only their SHA-256 is stored.
+/// The access token is short-lived; the refresh token rotates on every use.
+model Session {
+  id               String   @id @db.VarChar(32)
+  userId           String   @db.VarChar(32)
+  accessHash       String   @unique @db.Char(64)
+  accessExpiresAt  DateTime
+  refreshHash      String   @unique @db.Char(64)
+  /// The refresh token this one replaced; seeing it again means it was stolen.
+  prevRefreshHash  String?  @db.Char(64)
+  expiresAt        DateTime
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([prevRefreshHash])
+}
+
+model PasswordReset {
+  id        String    @id @db.VarChar(32)
+  userId    String    @db.VarChar(32)
+  codeHash  String    @db.Char(64)
+  expiresAt DateTime
+  attempts  Int       @default(0)
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ── Flat workspace ────────────────────────────────────────
+
+model Flat {
+  id        String   @id @db.VarChar(32)
+  name      String   @db.VarChar(80)
+  /// Shared with flatmates so they can join.
+  joinCode  String   @unique @db.Char(8)
+  createdAt DateTime @default(now())
+
+  members   Member[]
+  expenses  Expense[]
+  bills     Bill[]
+  meals     Meal[]
+  groceries GroceryItem[]
+  tasks     Task[]
+}
+
+/// A person living in the flat. `userId` is null for flatmates without an account yet.
+model Member {
+  id      String    @id @db.VarChar(32)
+  flatId  String    @db.VarChar(32)
+  userId  String?   @db.VarChar(32)
+  name    String    @db.VarChar(80)
+  role    String    @default("member") @db.VarChar(16)
+  moveIn  DateTime  @db.Date
+  moveOut DateTime? @db.Date
+
+  flat   Flat           @relation(fields: [flatId], references: [id], onDelete: Cascade)
+  user     User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  shares   ExpenseShare[]
+  comments ExpenseComment[]
+
+  @@unique([flatId, userId])
+}
+
+model Expense {
+  id          String   @id @db.VarChar(32)
+  flatId      String   @db.VarChar(32)
+  title       String   @db.VarChar(120)
+  category    String   @db.VarChar(24)
+  amountPaise Int
+  date        DateTime @db.Date
+  billId      String?  @db.VarChar(32)
+  createdAt   DateTime @default(now())
+
+  flat     Flat             @relation(fields: [flatId], references: [id], onDelete: Cascade)
+  shares   ExpenseShare[]
+  comments ExpenseComment[]
+
+  @@index([flatId, date])
+}
+
+/// A flatmate's note on an expense ("this includes the deposit").
+model ExpenseComment {
+  id        String   @id @db.VarChar(32)
+  expenseId String   @db.VarChar(32)
+  memberId  String   @db.VarChar(32)
+  body      String   @db.VarChar(500)
+  createdAt DateTime @default(now())
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  member  Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId, createdAt])
+}
+
+/// Who put money in (paid) and whose share it was (owed) for one expense.
+model ExpenseShare {
+  expenseId String @db.VarChar(32)
+  memberId  String @db.VarChar(32)
+  paidPaise Int    @default(0)
+  owedPaise Int    @default(0)
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  member  Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@id([expenseId, memberId])
+}
+
+model Bill {
+  id          String   @id @db.VarChar(32)
+  flatId      String   @db.VarChar(32)
+  name        String   @db.VarChar(80)
+  category    String   @db.VarChar(24)
+  /// Estimate while pending, actual once paid.
+  amountPaise Int
+  dueDate     DateTime @db.Date
+  periodStart DateTime @db.Date
+  periodEnd   DateTime @db.Date
+  status      String   @default("pending") @db.VarChar(16)
+  /// When paid, the next month's bill is created automatically.
+  repeatMonthly Boolean @default(false)
+
+  flat Flat @relation(fields: [flatId], references: [id], onDelete: Cascade)
+
+  @@index([flatId, status])
+}
+
+model Meal {
+  id          String   @id @db.VarChar(32)
+  flatId      String   @db.VarChar(32)
+  date        DateTime @db.Date
+  name        String   @db.VarChar(80)
+  /// [{ name, qty, unit }]
+  ingredients Json
+  listed      Boolean  @default(false)
+
+  flat Flat @relation(fields: [flatId], references: [id], onDelete: Cascade)
+
+  @@unique([flatId, date])
+}
+
+model GroceryItem {
+  id         String   @id @db.VarChar(32)
+  flatId     String   @db.VarChar(32)
+  name       String   @db.VarChar(80)
+  qty        Float
+  unit       String   @db.VarChar(16)
+  neededBy   DateTime @db.Date
+  /// Meal names this item is for.
+  forMeals   Json
+  assigneeId String?  @db.VarChar(32)
+  bought     Boolean  @default(false)
+
+  flat Flat @relation(fields: [flatId], references: [id], onDelete: Cascade)
+
+  @@index([flatId])
+}
+
+model Task {
+  id         String   @id @db.VarChar(32)
+  flatId     String   @db.VarChar(32)
+  title      String   @db.VarChar(120)
+  assigneeId String   @db.VarChar(32)
+  due        DateTime @db.Date
+  status     String   @default("pending") @db.VarChar(16)
+  /// Recurring chore: when done, the next one is due this many days later, rotated to the next flatmate.
+  repeatDays Int?
+
+  flat Flat @relation(fields: [flatId], references: [id], onDelete: Cascade)
+
+  @@index([flatId])
+}

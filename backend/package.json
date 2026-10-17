@@ -1,0 +1,41 @@
+{
+  "name": "nestwise-backend",
+  "version": "1.0.0",
+  "description": "Nestwise API",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/main/server.ts",
+    "start": "tsx src/main/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test src/domain/*.test.ts src/infrastructure/*.test.ts",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:seed": "tsx prisma/seed.ts",
+    "test:int": "tsx --test --test-concurrency=1 src/main/*.int.test.ts",
+    "db:cleanup-tests": "tsx prisma/cleanup-test-users.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-mariadb": "^7.10.1",
+    "@prisma/client": "^7.10.1",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.8",
+    "express": "^5.3.0",
+    "express-rate-limit": "^8.7.1",
+    "helmet": "^8.3.0",
+    "mariadb": "^3.5.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.19.2",
+    "prisma": "^7.10.1",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.2"
+  },
+  "allowScripts": {
+    "prisma": true,
+    "@prisma/engines": true
+  }
+}
