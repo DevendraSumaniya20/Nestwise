@@ -20,6 +20,7 @@ export const memberParams = flatParams.extend({ memberId: id });
 export const billParams = flatParams.extend({ billId: id });
 export const groceryParams = flatParams.extend({ itemId: id });
 export const taskParams = flatParams.extend({ taskId: id });
+export const expenseParams = flatParams.extend({ expenseId: id });
 export const mealParams = flatParams.extend({ date: isoDate });
 
 export const createFlatBody = z.object({ name });
@@ -37,7 +38,13 @@ export const addExpenseBody = z.object({
   paidBy: id,
   splitAmong: z.array(id).min(1).max(50),
   date: isoDate,
+  /** Unequal split: shares per person (e.g. 2 for a double room). Missing people count as 1. */
+  weights: z.record(id, z.number().int().min(1).max(100)).optional(),
+  /** Several payers: paise each, must sum to `amount`. */
+  payers: z.record(id, paise).optional(),
 });
+export const spendingQuery = z.object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'must be YYYY-MM') });
+export const commentBody = z.object({ body: z.string().trim().min(1).max(500) });
 
 export const addBillBody = z
   .object({
@@ -47,6 +54,7 @@ export const addBillBody = z
     dueDate: isoDate,
     periodStart: isoDate,
     periodEnd: isoDate,
+    repeatMonthly: z.boolean().optional(),
   })
   .refine(b => b.periodStart <= b.periodEnd, { path: ['periodEnd'], message: 'must be on or after periodStart' });
 
@@ -63,5 +71,10 @@ export const updateGroceryBody = z
   .object({ bought: z.boolean().optional(), assigneeId: id.nullable().optional() })
   .refine(p => p.bought !== undefined || p.assigneeId !== undefined, 'nothing to update');
 export const assignOpenBody = z.object({ assigneeId: id });
-export const addTaskBody = z.object({ title: z.string().trim().min(1).max(120), assignee: id, due: isoDate });
+export const addTaskBody = z.object({
+  title: z.string().trim().min(1).max(120),
+  assignee: id,
+  due: isoDate,
+  repeatDays: z.number().int().min(1).max(365).optional(),
+});
 export const taskStatusBody = z.object({ status: z.enum(['pending', 'in_progress', 'done']) });

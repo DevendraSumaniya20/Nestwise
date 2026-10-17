@@ -140,6 +140,56 @@ test('flat lifecycle: create, join by code, expenses, bills, groceries, tasks, m
   assert.equal(Object.values(after as Record<string, number>).reduce((a, b) => a + b, 0), 0);
 });
 
+test('recurring chores rotate, recurring bills roll over, weighted splits, deletes', async () => {
+  const owner = await newUser('Rota');
+  const mate = await newUser('RotaMate');
+  const t = (path: string, body?: unknown, method = 'POST') => call(method, path, body, owner.accessToken);
+  await t('/flats', { name: 'Rota Flat' });
+  const { flats: list } = (await t('/flats', undefined, 'GET')).body;
+  const flatId = list[0].id;
+  flatIds.push(flatId);
+  const joined = await call('POST', '/flats/join', { code: list[0].joinCode }, mate.accessToken);
+  const [o, m] = ['Rota', 'RotaMate'].map(n => joined.body.members.find((x: { name: string }) => x.name === n).id);
+  const f = `/flats/${flatId}`;
+
+  const task = await t(`${f}/tasks`, { title: 'Bins', assignee: o, due: today(), repeatDays: 7 });
+  const taskId = task.body.tasks[0].id;
+  const done = (await t(`${f}/tasks/${taskId}`, { status: 'done' }, 'PATCH')).body.tasks;
+  const next = done.find((x: { id: string }) => x.id !== taskId);
+  assert.deepEqual([next.assignee, next.due, next.repeatDays, next.status], [m, addDays(today(), 7), 7, 'pending']);
+  // Un-tick and re-tick: still only one next round.
+  await t(`${f}/tasks/${taskId}`, { status: 'pending' }, 'PATCH');
+  assert.equal((await t(`${f}/tasks/${taskId}`, { status: 'done' }, 'PATCH')).body.tasks.length, 2);
+  assert.equal((await t(`${f}/tasks/${next.id}`, undefined, 'DELETE')).body.tasks.length, 1);
+
+  const bill = await t(`${f}/bills`, { name: 'Rent', category: 'Rent', amount: 2000000, dueDate: '2026-10-05', periodStart: '2026-10-01', periodEnd: '2026-10-31', repeatMonthly: true });
+  const paid = await t(`${f}/bills/${bill.body.bills[0].id}/pay`, { payerId: o, amount: 2100000, date: today() });
+  const rolled = paid.body.bills.find((b: { status: string }) => b.status === 'pending');
+  assert.deepEqual([rolled.dueDate, rolled.periodStart, rolled.periodEnd, rolled.amount, rolled.repeatMonthly], ['2026-11-05', '2026-11-01', '2026-11-30', 2100000, true]);
+  const billExp = paid.body.expenses[0];
+  assert.equal((await t(`${f}/expenses/${billExp.id}`, undefined, 'DELETE')).status, 409);
+
+  const w = await t(`${f}/expenses`, { title: 'Big room', category: 'Other', amount: 90000, paidBy: o, splitAmong: [o, m], weights: { [o]: 2 }, date: today() });
+  const e = w.body.expenses.find((x: { title: string }) => x.title === 'Big room');
+  assert.deepEqual(e.owed, { [o]: 60000, [m]: 30000 });
+  const both = await t(`${f}/expenses`, { title: 'Sofa', category: 'Furniture', amount: 50000, paidBy: o, payers: { [o]: 20000, [m]: 30000 }, splitAmong: [o, m], date: today() });
+  const sofa = both.body.expenses.find((x: { title: string }) => x.title === 'Sofa');
+  assert.deepEqual(sofa.paid, { [o]: 20000, [m]: 30000 });
+  const bad = await t(`${f}/expenses`, { title: 'X', category: 'Other', amount: 100, paidBy: o, payers: { [o]: 50 }, splitAmong: [o], date: today() });
+  assert.equal(bad.body.error.code, 'PAYERS_MISMATCH');
+
+  const c = await call('POST', `${f}/expenses/${e.id}/comments`, { body: 'Includes deposit' }, mate.accessToken);
+  assert.equal(c.status, 201);
+  assert.deepEqual(c.body.comments.map((x: { memberId: string; body: string }) => [x.memberId, x.body]), [[m, 'Includes deposit']]);
+  const month = today().slice(0, 7);
+  const sp = (await t(`${f}/spending?month=${month}`, undefined, 'GET')).body;
+  assert.ok(sp.byCategory.some((x: { category: string }) => x.category === 'Furniture'));
+  assert.equal((await t(`${f}/spending?month=2026-13`, undefined, 'GET')).status, 400);
+
+  const gone = await t(`${f}/expenses/${e.id}`, undefined, 'DELETE');
+  assert.ok(!gone.body.expenses.some((x: { id: string }) => x.id === e.id));
+});
+
 test('authorization: no token, other people’s flats, foreign member ids', async () => {
   const a = await newUser('Alice');
   const b = await newUser('Bob');

@@ -56,6 +56,23 @@ export function flatRouter(auth: AuthService, flats: FlatService): Router {
     const { flatId } = s.flatParams.parse(req.params);
     res.status(201).json(await flats.addExpense(currentUser(res), flatId, s.addExpenseBody.parse(req.body)));
   });
+  r.get('/flats/:flatId/spending', async (req, res) => {
+    const { flatId } = s.flatParams.parse(req.params);
+    res.json(await flats.spending(currentUser(res), flatId, s.spendingQuery.parse(req.query).month));
+  });
+  r.get('/flats/:flatId/expenses/:expenseId/comments', async (req, res) => {
+    const { flatId, expenseId } = s.expenseParams.parse(req.params);
+    res.json({ comments: await flats.comments(currentUser(res), flatId, expenseId) });
+  });
+  r.post('/flats/:flatId/expenses/:expenseId/comments', async (req, res) => {
+    const { flatId, expenseId } = s.expenseParams.parse(req.params);
+    const comments = await flats.addComment(currentUser(res), flatId, expenseId, s.commentBody.parse(req.body).body);
+    res.status(201).json({ comments });
+  });
+  r.delete('/flats/:flatId/expenses/:expenseId', async (req, res) => {
+    const { flatId, expenseId } = s.expenseParams.parse(req.params);
+    res.json(await flats.deleteExpense(currentUser(res), flatId, expenseId));
+  });
   r.post('/flats/:flatId/bills', async (req, res) => {
     const { flatId } = s.flatParams.parse(req.params);
     res.status(201).json(await flats.addBill(currentUser(res), flatId, s.addBillBody.parse(req.body)));
@@ -96,6 +113,10 @@ export function flatRouter(auth: AuthService, flats: FlatService): Router {
   r.patch('/flats/:flatId/tasks/:taskId', async (req, res) => {
     const { flatId, taskId } = s.taskParams.parse(req.params);
     res.json(await flats.setTaskStatus(currentUser(res), flatId, taskId, s.taskStatusBody.parse(req.body).status));
+  });
+  r.delete('/flats/:flatId/tasks/:taskId', async (req, res) => {
+    const { flatId, taskId } = s.taskParams.parse(req.params);
+    res.json(await flats.deleteTask(currentUser(res), flatId, taskId));
   });
   return r;
 }

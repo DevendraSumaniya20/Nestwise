@@ -1,12 +1,14 @@
 import type { PublicUser } from './auth-service.ts';
 import { AppError } from './errors.ts';
 import { netBalances, settleUp } from '../domain/balances.ts';
-import { today as todayIso } from '../domain/dates.ts';
+import { addDays, today as todayIso } from '../domain/dates.ts';
 import { addMealsToGroceries } from '../domain/groceries.ts';
 import type { Bill, Expense, ExpenseCategory, FlatState, GroceryItem, Ingredient, IsoDate, Meal, Member, Task } from '../domain/model.ts';
-import { splitEqual } from '../domain/money.ts';
+import { splitByWeights, splitEqual } from '../domain/money.ts';
 import { RECIPES } from '../domain/recipes.ts';
+import { addMonths, nextAssignee, nextPeriod } from '../domain/recurring.ts';
 import { reminders } from '../domain/reminders.ts';
+import { spending } from '../domain/spending.ts';
 import { billExpense, isActiveOn, moveOutSettlement, settlementExpense } from '../domain/settlement.ts';
 import { newId, newJoinCode } from '../infrastructure/crypto.ts';
 import type { PrismaClient } from '../infrastructure/prisma.ts';
@@ -97,6 +99,11 @@ export class FlatService {
     return moveOutSettlement(memberId, date, s.members, s.expenses, s.bills);
   }
 
+  async spending(user: PublicUser, flatId: string, month: string) {
+    const s = await this.state(user, flatId);
+    return spending(s.expenses, month);
+  }
+
   recipes() {
     return RECIPES;
   }
@@ -130,23 +137,52 @@ export class FlatService {
   async addExpense(
     user: PublicUser,
     flatId: string,
-    input: { title: string; category: ExpenseCategory; amount: number; paidBy: string; splitAmong: string[]; date: IsoDate },
+    input: {
+      title: string;
+      category: ExpenseCategory;
+      amount: number;
+      paidBy: string;
+      splitAmong: string[];
+      date: IsoDate;
+      /** Unequal split: shares per person in `splitAmong` (missing = 1). */
+      weights?: Record<string, number> | undefined;
+      /** Several people paid: paise per payer, summing to `amount`. Replaces `paidBy`. */
+      payers?: Record<string, number> | undefined;
+    },
   ) {
     const s = await this.state(user, flatId);
-    this.assertMembers(s, [input.paidBy, ...input.splitAmong]);
+    const payers = input.payers ?? { [input.paidBy]: input.amount };
+    this.assertMembers(s, [...Object.keys(payers), ...input.splitAmong]);
+    if (Object.values(payers).reduce((a, b) => a + b, 0) !== input.amount) {
+      throw new AppError('invalid', 'PAYERS_MISMATCH', 'What each person paid must add up to the total.');
+    }
+    const among = [...new Set(input.splitAmong)];
+    const weights = input.weights;
     await this.insertExpense(this.db, flatId, {
       id: newId(),
       title: input.title.trim(),
       category: input.category,
       amount: input.amount,
       date: input.date,
-      paid: { [input.paidBy]: input.amount },
-      owed: splitEqual(input.amount, [...new Set(input.splitAmong)]),
+      paid: payers,
+      owed: weights
+        ? splitByWeights(input.amount, Object.fromEntries(among.map(id => [id, weights[id] ?? 1])))
+        : splitEqual(input.amount, among),
     });
     return this.state(user, flatId);
   }
 
-  async addBill(user: PublicUser, flatId: string, bill: Omit<Bill, 'id' | 'status'>) {
+  async deleteExpense(user: PublicUser, flatId: string, expenseId: string) {
+    await this.me(user, flatId);
+    const e = await this.db.expense.findFirst({ where: { id: expenseId, flatId } });
+    if (!e) throw new AppError('not_found', 'EXPENSE_NOT_FOUND', 'That expense does not exist.');
+    // A bill payment's expense is the bill's split; removing it alone would leave the bill "paid" for free.
+    if (e.billId) throw new AppError('conflict', 'BILL_EXPENSE', 'This is a bill payment. It cannot be deleted on its own.');
+    await this.db.expense.delete({ where: { id: expenseId } });
+    return this.state(user, flatId);
+  }
+
+  async addBill(user: PublicUser, flatId: string, bill: Omit<Bill, 'id' | 'status' | 'repeatMonthly'> & { repeatMonthly?: boolean | undefined }) {
     await this.me(user, flatId);
     await this.db.bill.create({
       data: {
@@ -158,6 +194,7 @@ export class FlatService {
         dueDate: toDb(bill.dueDate),
         periodStart: toDb(bill.periodStart),
         periodEnd: toDb(bill.periodEnd),
+        repeatMonthly: bill.repeatMonthly ?? false,
       },
     });
     return this.state(user, flatId);
@@ -173,8 +210,39 @@ export class FlatService {
     await this.db.$transaction(async tx => {
       await tx.bill.update({ where: { id: billId }, data: { amountPaise: input.amount, status: 'paid' } });
       await this.insertExpense(tx, flatId, billExpense(paid, input.payerId, s.members, newId(), input.date));
+      if (bill.repeatMonthly) {
+        // Next month's bill, estimated at this month's actual amount.
+        const next = nextPeriod(bill.periodStart, bill.periodEnd);
+        await tx.bill.create({
+          data: {
+            id: newId(),
+            flatId,
+            name: bill.name,
+            category: bill.category,
+            amountPaise: input.amount,
+            dueDate: toDb(addMonths(bill.dueDate, 1)),
+            periodStart: toDb(next.periodStart),
+            periodEnd: toDb(next.periodEnd),
+            repeatMonthly: true,
+          },
+        });
+      }
     });
     return this.state(user, flatId);
+  }
+
+  async comments(user: PublicUser, flatId: string, expenseId: string) {
+    await this.me(user, flatId);
+    await this.expenseIn(flatId, expenseId);
+    const rows = await this.db.expenseComment.findMany({ where: { expenseId }, orderBy: { createdAt: 'asc' } });
+    return rows.map(c => ({ id: c.id, memberId: c.memberId, body: c.body, createdAt: c.createdAt.toISOString() }));
+  }
+
+  async addComment(user: PublicUser, flatId: string, expenseId: string, body: string) {
+    const me = await this.me(user, flatId);
+    await this.expenseIn(flatId, expenseId);
+    await this.db.expenseComment.create({ data: { id: newId(), expenseId, memberId: me.id, body: body.trim() } });
+    return this.comments(user, flatId, expenseId);
   }
 
   // ── Meals & groceries ──────────────────────────────────
@@ -252,18 +320,55 @@ export class FlatService {
 
   // ── Tasks ──────────────────────────────────────────────
 
-  async addTask(user: PublicUser, flatId: string, input: { title: string; assignee: string; due: IsoDate }) {
+  async addTask(
+    user: PublicUser,
+    flatId: string,
+    input: { title: string; assignee: string; due: IsoDate; repeatDays?: number | undefined },
+  ) {
     const s = await this.state(user, flatId);
     this.assertMembers(s, [input.assignee]);
     await this.db.task.create({
-      data: { id: newId(), flatId, title: input.title.trim(), assigneeId: input.assignee, due: toDb(input.due) },
+      data: {
+        id: newId(),
+        flatId,
+        title: input.title.trim(),
+        assigneeId: input.assignee,
+        due: toDb(input.due),
+        repeatDays: input.repeatDays ?? null,
+      },
     });
     return this.state(user, flatId);
   }
 
   async setTaskStatus(user: PublicUser, flatId: string, taskId: string, status: Task['status']) {
+    const s = await this.state(user, flatId);
+    const task = s.tasks.find(t => t.id === taskId);
+    if (!task) throw new AppError('not_found', 'TASK_NOT_FOUND', 'That task does not exist.');
+    await this.db.$transaction(async tx => {
+      await tx.task.update({ where: { id: taskId }, data: { status } });
+      if (status !== 'done' || task.status === 'done' || !task.repeatDays) return;
+      // Recurring chore: queue the next round for the next flatmate on the rota.
+      const due = addDays(task.due, task.repeatDays);
+      // Un-ticking and re-ticking must not queue the same round twice.
+      const queued = s.tasks.some(t => t.title === task.title && t.due === due && t.repeatDays === task.repeatDays);
+      if (queued) return;
+      await tx.task.create({
+        data: {
+          id: newId(),
+          flatId,
+          title: task.title,
+          assigneeId: nextAssignee(s.members, task.assignee, due),
+          due: toDb(due),
+          repeatDays: task.repeatDays,
+        },
+      });
+    });
+    return this.state(user, flatId);
+  }
+
+  async deleteTask(user: PublicUser, flatId: string, taskId: string) {
     await this.me(user, flatId);
-    const { count } = await this.db.task.updateMany({ where: { id: taskId, flatId }, data: { status } });
+    const { count } = await this.db.task.deleteMany({ where: { id: taskId, flatId } });
     if (count === 0) throw new AppError('not_found', 'TASK_NOT_FOUND', 'That task does not exist.');
     return this.state(user, flatId);
   }
@@ -275,6 +380,11 @@ export class FlatService {
     const me = await this.db.member.findUnique({ where: { flatId_userId: { flatId, userId: user.id } } });
     if (!me) throw new AppError('not_found', 'FLAT_NOT_FOUND', 'That flat does not exist.');
     return me;
+  }
+
+  private async expenseIn(flatId: string, expenseId: string) {
+    const e = await this.db.expense.findFirst({ where: { id: expenseId, flatId }, select: { id: true } });
+    if (!e) throw new AppError('not_found', 'EXPENSE_NOT_FOUND', 'That expense does not exist.');
   }
 
   /** Member ids from a request must belong to this flat. */
@@ -363,6 +473,7 @@ export class FlatService {
         periodStart: fromDb(b.periodStart),
         periodEnd: fromDb(b.periodEnd),
         status: b.status as Bill['status'],
+        ...(b.repeatMonthly && { repeatMonthly: true }),
       })),
       meals: flat.meals.map(
         (m): Meal => ({
@@ -389,6 +500,7 @@ export class FlatService {
         assignee: t.assigneeId,
         due: fromDb(t.due),
         status: t.status as Task['status'],
+        ...(t.repeatDays && { repeatDays: t.repeatDays }),
       })),
     };
   }

@@ -85,8 +85,9 @@ model Member {
   moveOut DateTime? @db.Date
 
   flat   Flat           @relation(fields: [flatId], references: [id], onDelete: Cascade)
-  user   User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  shares ExpenseShare[]
+  user     User?            @relation(fields: [userId], references: [id], onDelete: SetNull)
+  shares   ExpenseShare[]
+  comments ExpenseComment[]
 
   @@unique([flatId, userId])
 }
@@ -101,10 +102,25 @@ model Expense {
   billId      String?  @db.VarChar(32)
   createdAt   DateTime @default(now())
 
-  flat   Flat           @relation(fields: [flatId], references: [id], onDelete: Cascade)
-  shares ExpenseShare[]
+  flat     Flat             @relation(fields: [flatId], references: [id], onDelete: Cascade)
+  shares   ExpenseShare[]
+  comments ExpenseComment[]
 
   @@index([flatId, date])
+}
+
+/// A flatmate's note on an expense ("this includes the deposit").
+model ExpenseComment {
+  id        String   @id @db.VarChar(32)
+  expenseId String   @db.VarChar(32)
+  memberId  String   @db.VarChar(32)
+  body      String   @db.VarChar(500)
+  createdAt DateTime @default(now())
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  member  Member  @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId, createdAt])
 }
 
 /// Who put money in (paid) and whose share it was (owed) for one expense.
@@ -131,6 +147,8 @@ model Bill {
   periodStart DateTime @db.Date
   periodEnd   DateTime @db.Date
   status      String   @default("pending") @db.VarChar(16)
+  /// When paid, the next month's bill is created automatically.
+  repeatMonthly Boolean @default(false)
 
   flat Flat @relation(fields: [flatId], references: [id], onDelete: Cascade)
 
@@ -175,6 +193,8 @@ model Task {
   assigneeId String   @db.VarChar(32)
   due        DateTime @db.Date
   status     String   @default("pending") @db.VarChar(16)
+  /// Recurring chore: when done, the next one is due this many days later, rotated to the next flatmate.
+  repeatDays Int?
 
   flat Flat @relation(fields: [flatId], references: [id], onDelete: Cascade)
 

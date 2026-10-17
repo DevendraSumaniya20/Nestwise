@@ -4,7 +4,9 @@ import { netBalances, settleUp } from './balances.ts';
 import { addDays, overlapDays } from './dates.ts';
 import { addMealsToGroceries } from './groceries.ts';
 import type { Bill, Expense, FlatState, Member } from './model.ts';
-import { formatInr, parseRupees, splitByOccupancy, splitEqual } from './money.ts';
+import { formatInr, parseRupees, splitByOccupancy, splitByWeights, splitEqual } from './money.ts';
+import { addMonths, nextAssignee, nextPeriod } from './recurring.ts';
+import { spending } from './spending.ts';
 import { reminders } from './reminders.ts';
 import { billExpense, moveOutSettlement, outstandingAfterMoveOut, settlementExpense } from './settlement.ts';
 
@@ -90,4 +92,27 @@ test('reminders: Friday spinach still unbought on Thursday goes to its buyer', (
   const r = reminders(state, '2026-10-15');
   assert.deepEqual(r.map(x => x.id), ['g-s', 'b-elec']);
   assert.equal(r[0]!.for, 'rahul');
+});
+
+test('recurring: month math and chore rotation', () => {
+  assert.equal(addMonths('2026-01-31', 1), '2026-02-28');
+  assert.equal(addMonths('2026-12-15', 1), '2027-01-15');
+  assert.deepEqual(nextPeriod('2026-10-01', '2026-10-31'), { periodStart: '2026-11-01', periodEnd: '2026-11-30' });
+  assert.equal(nextAssignee(members, 'amit', '2026-10-01'), 'jay');
+  assert.equal(nextAssignee(members, 'karan', '2026-10-01'), 'rahul');
+  // Rahul moved out on 20 Oct, so the rota skips him after that.
+  assert.equal(nextAssignee(left, 'karan', '2026-10-25'), 'amit');
+  assert.equal(nextAssignee(left, 'rahul', '2026-10-25'), 'amit');
+  assert.deepEqual(splitByWeights(1000, { a: 2, b: 1, c: 1 }), { a: 500, b: 250, c: 250 });
+});
+
+test('spending: one month, by category and person, settlements excluded', () => {
+  const rent: Expense = { ...expense('amit', 400), id: 'rent', category: 'Rent' };
+  const old: Expense = { ...expense('jay', 1000), id: 'old', date: '2026-09-30' };
+  const payBack: Expense = { id: 'pay', title: 'Payment', category: 'Settlement', amount: 100, date: '2026-10-02', paid: { jay: 100 }, owed: { amit: 100 } };
+  const s = spending([expense('rahul', 800), rent, old, payBack], '2026-10');
+  assert.equal(s.total, 1200);
+  assert.deepEqual(s.byCategory, [{ category: 'Groceries', amount: 800 }, { category: 'Rent', amount: 400 }]);
+  assert.deepEqual(s.byMember.find(m => m.memberId === 'rahul'), { memberId: 'rahul', paid: 800, share: 300 });
+  assert.equal(sum(Object.fromEntries(s.byMember.map(m => [m.memberId, m.share]))), 1200);
 });
