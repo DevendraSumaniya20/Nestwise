@@ -55,6 +55,10 @@ export const en = {
     square: 'Everyone is square.',
     expenses: 'Expenses',
     none: 'No expenses yet.',
+    spending: 'Spending',
+    noSpending: 'Nothing spent this month.',
+    comments: 'Comments',
+    noComments: 'No comments yet.',
   },
   food: {
     title: 'Meals & groceries',
@@ -64,7 +68,13 @@ export const en = {
     listEmpty: 'Empty. Plan dinners above, then add their ingredients.',
     add: 'Add grocery item',
   },
-  tasks: { title: 'Tasks', subtitle: 'Who does what, by when', add: 'Add task', all: 'All tasks', none: 'No tasks yet.' },
+  tasks: {
+    title: 'Tasks',
+    subtitle: 'Who does what, by when · long-press to delete',
+    add: 'Add task',
+    all: 'All tasks',
+    none: 'No tasks yet.',
+  },
   flat: {
     title: 'Flat',
     subtitle: 'Bills, people, move-outs',
@@ -77,6 +87,8 @@ export const en = {
     invite: 'Invite flatmates',
     inviteHelp: 'Share this code. They sign up, then join with it.',
     account: 'Account',
+    appearance: 'Appearance',
+    appearanceHelp: 'System follows your phone’s light or dark setting.',
   },
 };
 

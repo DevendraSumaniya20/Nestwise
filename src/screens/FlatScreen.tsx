@@ -7,7 +7,8 @@ import { formatInr, parseRupees } from '../utils/money';
 import { moveOutSettlement, outstandingAfterMoveOut } from '../services/settlement';
 import { AddCard, Avatar, Button, Card, Chip, Chips, Empty, ErrorText, Field, Label, MemberPicker, Row, Screen, T } from '../components';
 import { space } from '../constants';
-import { useAuth, useColors, useFlat } from '../hooks';
+import { useAuth, useColors, useFlat, useThemePref } from '../hooks';
+import type { ThemePref } from '../services/themeStore';
 import { flatApi } from '../services/api';
 import { useT } from '../i18n';
 
@@ -15,6 +16,7 @@ export function FlatScreen() {
   const t = useT();
   const { state, refresh, flatId } = useFlat();
   const { user, logout } = useAuth();
+  const [theme, setTheme] = useThemePref();
   const [joinCode, setJoinCode] = useState('');
   useEffect(() => {
     flatApi.joinCode(flatId).then(r => setJoinCode(r.code)).catch(() => {});
@@ -59,6 +61,15 @@ export function FlatScreen() {
         <T muted size={13}>{t.flat.inviteHelp}</T>
       </Card>
 
+      <Card title={t.flat.appearance}>
+        <Chips>
+          {THEMES.map(x => (
+            <Chip key={x.value} label={x.label} selected={theme === x.value} onPress={() => setTheme(x.value)} />
+          ))}
+        </Chips>
+        <T muted size={13}>{t.flat.appearanceHelp}</T>
+      </Card>
+
       <Card title={t.flat.account}>
         <T strong>{user?.name}</T>
         <T muted size={13}>{user?.email}</T>
@@ -67,6 +78,12 @@ export function FlatScreen() {
     </Screen>
   );
 }
+
+const THEMES: { value: ThemePref; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+];
 
 function BillRow({ bill, open, onToggle }: { bill: Bill; open: boolean; onToggle: () => void }) {
   const { dispatch, today, active, me } = useFlat();
@@ -89,6 +106,7 @@ function BillRow({ bill, open, onToggle }: { bill: Bill; open: boolean; onToggle
           <T strong>{bill.name}</T>
           <T muted size={13} color={overdue ? c.bad : undefined}>
             Due {relativeDay(bill.dueDate, today)} · for {shortDate(bill.periodStart)} – {shortDate(bill.periodEnd)}
+            {bill.repeatMonthly ? ' · monthly' : ''}
           </T>
         </View>
         <T strong>{formatInr(bill.amount)}</T>
@@ -192,6 +210,7 @@ function AddBill({ onDone }: { onDone: () => void }) {
   const [dueDate, setDueDate] = useState(addDays(today, 7));
   const [periodStart, setPeriodStart] = useState(today.slice(0, 8) + '01');
   const [periodEnd, setPeriodEnd] = useState(today);
+  const [repeatMonthly, setRepeatMonthly] = useState(false);
   const [error, setError] = useState('');
 
   const save = async () => {
@@ -200,7 +219,7 @@ function AddBill({ onDone }: { onDone: () => void }) {
     if (!p) return setError('Enter the amount or your best estimate.');
     if (![dueDate, periodStart, periodEnd].every(isIsoDate)) return setError('Dates must be YYYY-MM-DD.');
     if (periodStart > periodEnd) return setError('Period start must be before period end.');
-    if (await dispatch({ type: 'addBill', bill: { name: name.trim(), category, amount: p, dueDate, periodStart, periodEnd } })) onDone();
+    if (await dispatch({ type: 'addBill', bill: { name: name.trim(), category, amount: p, dueDate, periodStart, periodEnd, repeatMonthly } })) onDone();
   };
 
   return (
@@ -223,6 +242,12 @@ function AddBill({ onDone }: { onDone: () => void }) {
           <Field label="Period to" value={periodEnd} onChangeText={setPeriodEnd} autoCapitalize="none" />
         </View>
       </View>
+      <Label>Repeats</Label>
+      <Chips>
+        <Chip label="One-off" selected={!repeatMonthly} onPress={() => setRepeatMonthly(false)} />
+        <Chip label="Every month" selected={repeatMonthly} onPress={() => setRepeatMonthly(true)} />
+      </Chips>
+      {repeatMonthly ? <T muted size={13}>Once paid, next month's bill is added with this month's amount.</T> : null}
       <Button title="Add bill" onPress={save} />
     </>
   );

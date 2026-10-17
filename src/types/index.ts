@@ -50,6 +50,8 @@ export type Bill = {
   periodStart: IsoDate;
   periodEnd: IsoDate;
   status: 'pending' | 'paid';
+  /** When paid, next month's bill is created automatically. */
+  repeatMonthly?: boolean;
 };
 
 export type Ingredient = { name: string; qty: number; unit: string };
@@ -82,6 +84,8 @@ export type Task = {
   assignee: Id;
   due: IsoDate;
   status: TaskStatus;
+  /** Recurring chore: when done, the next one is due this many days later, rotated to the next flatmate. */
+  repeatDays?: number;
 };
 
 export type FlatState = {
@@ -94,4 +98,15 @@ export type FlatState = {
   meals: Meal[];
   groceries: GroceryItem[];
   tasks: Task[];
+};
+
+/** A flatmate's note on an expense. Loaded on demand, not part of FlatState. */
+export type ExpenseComment = { id: Id; memberId: Id; body: string; createdAt: string };
+
+/** One month of flat spending (settlements excluded), computed by the server. */
+export type Spending = {
+  month: string;
+  total: Paise;
+  byCategory: { category: ExpenseCategory; amount: Paise }[];
+  byMember: { memberId: Id; paid: Paise; share: Paise }[];
 };

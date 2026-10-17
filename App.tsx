@@ -4,16 +4,20 @@
  * @format
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { StatusBar, StyleSheet, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { Provider } from 'react-redux';
 import { store } from './src/store';
+import { loadThemePref } from './src/hooks/useThemePref';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
+  useEffect(() => {
+    loadThemePref();
+  }, []);
 
   return (
     <GestureHandlerRootView style={styles.root}>

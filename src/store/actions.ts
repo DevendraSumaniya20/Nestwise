@@ -9,7 +9,20 @@ const NEXT: Record<Task['status'], Task['status']> = {
 };
 
 export type Action =
-  | { type: 'addExpense'; title: string; category: ExpenseCategory; amount: Paise; paidBy: Id; splitAmong: Id[]; date: IsoDate }
+  | {
+      type: 'addExpense';
+      title: string;
+      category: ExpenseCategory;
+      amount: Paise;
+      paidBy: Id;
+      splitAmong: Id[];
+      date: IsoDate;
+      /** Shares per person for an unequal split; omitted = equal. */
+      weights?: Record<Id, number>;
+      /** Several payers (paise each, summing to amount); omitted = `paidBy` paid it all. */
+      payers?: Record<Id, Paise>;
+    }
+  | { type: 'deleteExpense'; id: Id }
   | { type: 'addBill'; bill: Omit<Bill, 'id' | 'status'> }
   | { type: 'payBill'; billId: Id; payerId: Id; amount: Paise; date: IsoDate }
   | { type: 'setMeal'; date: IsoDate; recipe: Recipe | null }
@@ -18,7 +31,8 @@ export type Action =
   | { type: 'toggleBought'; id: Id }
   | { type: 'assignGrocery'; id: Id; assignee: Id | undefined }
   | { type: 'assignAllOpen'; assignee: Id }
-  | { type: 'addTask'; title: string; assignee: Id; due: IsoDate }
+  | { type: 'addTask'; title: string; assignee: Id; due: IsoDate; repeatDays?: number }
+  | { type: 'deleteTask'; id: Id }
   | { type: 'cycleTask'; id: Id }
   | { type: 'addMember'; name: string; moveIn: IsoDate }
   | { type: 'moveOut'; memberId: Id; date: IsoDate };
@@ -34,7 +48,11 @@ export function runAction(flatId: Id, s: FlatState, a: Action): Promise<FlatStat
         paidBy: a.paidBy,
         splitAmong: a.splitAmong,
         date: a.date,
+        ...(a.weights && { weights: a.weights }),
+        ...(a.payers && { payers: a.payers }),
       });
+    case 'deleteExpense':
+      return flatApi.deleteExpense(flatId, a.id);
     case 'addBill':
       return flatApi.addBill(flatId, a.bill);
     case 'payBill':
@@ -54,7 +72,14 @@ export function runAction(flatId: Id, s: FlatState, a: Action): Promise<FlatStat
     case 'assignAllOpen':
       return flatApi.assignOpen(flatId, a.assignee);
     case 'addTask':
-      return flatApi.addTask(flatId, { title: a.title, assignee: a.assignee, due: a.due });
+      return flatApi.addTask(flatId, {
+        title: a.title,
+        assignee: a.assignee,
+        due: a.due,
+        ...(a.repeatDays && { repeatDays: a.repeatDays }),
+      });
+    case 'deleteTask':
+      return flatApi.deleteTask(flatId, a.id);
     case 'cycleTask': {
       const task = s.tasks.find(t => t.id === a.id);
       return flatApi.setTaskStatus(flatId, a.id, NEXT[task?.status ?? 'done']);

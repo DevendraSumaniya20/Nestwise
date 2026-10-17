@@ -1,4 +1,4 @@
-import type { Bill, ExpenseCategory, FlatState, Id, IsoDate, Paise, Task } from '../../types';
+import type { Bill, ExpenseCategory, ExpenseComment, FlatState, Id, IsoDate, Paise, Spending, Task } from '../../types';
 import { api, publicApi } from './client';
 
 export * from './client';
@@ -31,8 +31,23 @@ export const flatApi = {
     api<FlatState>('POST', `${f(flatId)}/members/${memberId}/move-out`, { date }),
   addExpense: (
     flatId: Id,
-    b: { title: string; category: ExpenseCategory; amount: Paise; paidBy: Id; splitAmong: Id[]; date: IsoDate },
+    b: {
+      title: string;
+      category: ExpenseCategory;
+      amount: Paise;
+      paidBy: Id;
+      splitAmong: Id[];
+      date: IsoDate;
+      weights?: Record<Id, number>;
+      payers?: Record<Id, Paise>;
+    },
   ) => api<FlatState>('POST', `${f(flatId)}/expenses`, b),
+  spending: (flatId: Id, month: string) => api<Spending>('GET', `${f(flatId)}/spending?month=${month}`),
+  comments: (flatId: Id, expenseId: Id) =>
+    api<{ comments: ExpenseComment[] }>('GET', `${f(flatId)}/expenses/${expenseId}/comments`),
+  addComment: (flatId: Id, expenseId: Id, body: string) =>
+    api<{ comments: ExpenseComment[] }>('POST', `${f(flatId)}/expenses/${expenseId}/comments`, { body }),
+  deleteExpense: (flatId: Id, expenseId: Id) => api<FlatState>('DELETE', `${f(flatId)}/expenses/${expenseId}`),
   addBill: (flatId: Id, b: Omit<Bill, 'id' | 'status'>) => api<FlatState>('POST', `${f(flatId)}/bills`, b),
   payBill: (flatId: Id, billId: Id, b: { payerId: Id; amount: Paise; date: IsoDate }) =>
     api<FlatState>('POST', `${f(flatId)}/bills/${billId}/pay`, b),
@@ -45,7 +60,9 @@ export const flatApi = {
   updateGrocery: (flatId: Id, itemId: Id, b: { bought?: boolean; assigneeId?: Id | null }) =>
     api<FlatState>('PATCH', `${f(flatId)}/groceries/${itemId}`, b),
   assignOpen: (flatId: Id, assigneeId: Id) => api<FlatState>('POST', `${f(flatId)}/groceries/assign-open`, { assigneeId }),
-  addTask: (flatId: Id, b: { title: string; assignee: Id; due: IsoDate }) => api<FlatState>('POST', `${f(flatId)}/tasks`, b),
+  addTask: (flatId: Id, b: { title: string; assignee: Id; due: IsoDate; repeatDays?: number }) =>
+    api<FlatState>('POST', `${f(flatId)}/tasks`, b),
+  deleteTask: (flatId: Id, taskId: Id) => api<FlatState>('DELETE', `${f(flatId)}/tasks/${taskId}`),
   setTaskStatus: (flatId: Id, taskId: Id, status: Task['status']) =>
     api<FlatState>('PATCH', `${f(flatId)}/tasks/${taskId}`, { status }),
 };

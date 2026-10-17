@@ -1,12 +1,13 @@
 import { Plus } from 'lucide-react-native';
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { addDays, isIsoDate, relativeDay } from '../utils/dates';
 import type { TaskStatus } from '../types';
 import {
   Avatar,
   Button,
   Chip,
+  Chips,
   ErrorText,
   Fab,
   Field,
@@ -26,6 +27,17 @@ const STATUS: Record<TaskStatus, string> = {
   in_progress: 'In progress',
   done: 'Done',
 };
+
+/** Recurring chores: done → the next round goes to the next flatmate on the rota. */
+const REPEAT: { label: string; days?: number }[] = [
+  { label: 'Once' },
+  { label: 'Daily', days: 1 },
+  { label: 'Weekly', days: 7 },
+  { label: 'Every 2 weeks', days: 14 },
+  { label: 'Monthly', days: 30 },
+];
+const repeatLabel = (days: number) =>
+  REPEAT.find(r => r.days === days)?.label.toLowerCase() ?? `every ${days} days`;
 
 export function TasksScreen() {
   const t = useT();
@@ -51,7 +63,15 @@ export function TasksScreen() {
         renderItem={task => {
           const overdue = task.status !== 'done' && task.due < today;
           return (
-            <Row>
+            <Row
+              label={task.title}
+              onLongPress={() =>
+                Alert.alert('Delete task?', task.title, [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Delete', style: 'destructive', onPress: () => dispatch({ type: 'deleteTask', id: task.id }) },
+                ])
+              }
+            >
               <Avatar
                 id={task.assignee}
                 name={nameOf(task.assignee)}
@@ -62,6 +82,7 @@ export function TasksScreen() {
                 <T muted={task.status === 'done'}>{task.title}</T>
                 <T muted size={13} color={overdue ? c.bad : undefined}>
                   {nameOf(task.assignee)} · due {relativeDay(task.due, today)}
+                  {task.repeatDays ? ` · repeats ${repeatLabel(task.repeatDays)}` : ''}
                 </T>
               </View>
               <Chip
@@ -90,12 +111,13 @@ function AddTask({ onDone }: { onDone: () => void }) {
   const [title, setTitle] = useState('');
   const [assignee, setAssignee] = useState(me.id);
   const [due, setDue] = useState(addDays(today, 1));
+  const [repeatDays, setRepeatDays] = useState<number | undefined>();
   const [error, setError] = useState('');
 
   const save = async () => {
     if (!title.trim()) return setError('Add a task title.');
     if (!isIsoDate(due)) return setError('Date must be YYYY-MM-DD.');
-    if (await dispatch({ type: 'addTask', title: title.trim(), assignee, due }))
+    if (await dispatch({ type: 'addTask', title: title.trim(), assignee, due, repeatDays }))
       onDone();
   };
 
@@ -120,6 +142,13 @@ function AddTask({ onDone }: { onDone: () => void }) {
         selected={[assignee]}
         onToggle={setAssignee}
       />
+      <Label>Repeat</Label>
+      <Chips>
+        {REPEAT.map(r => (
+          <Chip key={r.label} label={r.label} selected={r.days === repeatDays} onPress={() => setRepeatDays(r.days)} />
+        ))}
+      </Chips>
+      {repeatDays ? <T muted size={13}>When done, the next one goes to the next flatmate.</T> : null}
       <Button title="Save task" onPress={save} />
     </>
   );

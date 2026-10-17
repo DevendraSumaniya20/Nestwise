@@ -80,7 +80,13 @@ AsyncStorage · Montserrat.
 - Local push notifications (e.g. `@notifee/react-native`) scheduled from the reminders feed
 - Flat Vault: documents (PDF/image picker), categories, expiry reminders
 - Flat inventory (who owns sofa/TV/fridge), pantry with low-stock -> grocery list
-- Recurring bills (auto-create monthly)
+- [x] Recurring bills (paying one creates next month's, estimated at the actual amount)
+- [x] Recurring chores with rotation (done → next round, next active flatmate in move-in order)
+- [x] Split by shares (unequal splits) and delete expense/task (long-press; bill payments can't be deleted)
+- [x] Several payers on one expense; comments on expenses (tap an expense)
+- [x] Monthly spending by category and person (`GET /flats/:id/spending?month=YYYY-MM`)
+- [x] Appearance: System / Light / Dark (Flat tab), saved on device
+- Receipt photos (needs an image picker + file storage)
 
 ### Phase 3 — Multi-device
 - Backend (auth, flats, invites by link/code), sync, remote push

@@ -4,10 +4,20 @@ import { space } from '../constants';
 import { useColors } from '../hooks/useColors';
 import { Touchable } from './Touchable';
 
-export function Row({ children, onPress, label }: { children: React.ReactNode; onPress?: () => void; label?: string }) {
+export function Row({
+  children,
+  onPress,
+  onLongPress,
+  label,
+}: {
+  children: React.ReactNode;
+  onPress?: () => void;
+  onLongPress?: () => void;
+  label?: string;
+}) {
   const c = useColors();
-  return onPress ? (
-    <Touchable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} pressScale={0.99} style={[styles.row, { borderColor: c.line }]}>
+  return onPress || onLongPress ? (
+    <Touchable onPress={onPress} onLongPress={onLongPress} accessibilityRole="button" accessibilityLabel={label} pressScale={0.99} style={[styles.row, { borderColor: c.line }]}>
       {children}
     </Touchable>
   ) : (
