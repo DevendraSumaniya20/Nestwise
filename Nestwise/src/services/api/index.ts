@@ -29,6 +29,16 @@ export const flatApi = {
   addMember: (flatId: Id, b: { name: string; moveIn: IsoDate }) => api<FlatState>('POST', `${f(flatId)}/members`, b),
   moveOut: (flatId: Id, memberId: Id, date: IsoDate) =>
     api<FlatState>('POST', `${f(flatId)}/members/${memberId}/move-out`, { date }),
+  setDeposit: (flatId: Id, memberId: Id, amount: Paise) =>
+    api<FlatState>('PUT', `${f(flatId)}/members/${memberId}/deposit`, { amount }),
+  addPantry: (flatId: Id, b: { name: string; qty: number; unit: string; lowAt: number }) =>
+    api<FlatState>('POST', `${f(flatId)}/pantry`, b),
+  updatePantry: (flatId: Id, itemId: Id, b: { qty?: number; lowAt?: number }) =>
+    api<FlatState>('PATCH', `${f(flatId)}/pantry/${itemId}`, b),
+  deletePantry: (flatId: Id, itemId: Id) => api<FlatState>('DELETE', `${f(flatId)}/pantry/${itemId}`),
+  addInventory: (flatId: Id, b: { name: string; ownerId: Id | null; value: Paise }) =>
+    api<FlatState>('POST', `${f(flatId)}/inventory`, b),
+  deleteInventory: (flatId: Id, itemId: Id) => api<FlatState>('DELETE', `${f(flatId)}/inventory/${itemId}`),
   addExpense: (
     flatId: Id,
     b: {

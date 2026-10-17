@@ -35,7 +35,13 @@ export type Action =
   | { type: 'deleteTask'; id: Id }
   | { type: 'cycleTask'; id: Id }
   | { type: 'addMember'; name: string; moveIn: IsoDate }
-  | { type: 'moveOut'; memberId: Id; date: IsoDate };
+  | { type: 'moveOut'; memberId: Id; date: IsoDate }
+  | { type: 'setDeposit'; memberId: Id; amount: Paise }
+  | { type: 'addPantry'; name: string; qty: number; unit: string; lowAt: number }
+  | { type: 'setPantryQty'; id: Id; qty: number }
+  | { type: 'deletePantry'; id: Id }
+  | { type: 'addInventory'; name: string; ownerId: Id | null; value: Paise }
+  | { type: 'deleteInventory'; id: Id };
 
 /** Each action is one API call; the server answers with the fresh flat state. */
 export function runAction(flatId: Id, s: FlatState, a: Action): Promise<FlatState> {
@@ -88,5 +94,17 @@ export function runAction(flatId: Id, s: FlatState, a: Action): Promise<FlatStat
       return flatApi.addMember(flatId, { name: a.name, moveIn: a.moveIn });
     case 'moveOut':
       return flatApi.moveOut(flatId, a.memberId, a.date);
+    case 'setDeposit':
+      return flatApi.setDeposit(flatId, a.memberId, a.amount);
+    case 'addPantry':
+      return flatApi.addPantry(flatId, { name: a.name, qty: a.qty, unit: a.unit, lowAt: a.lowAt });
+    case 'setPantryQty':
+      return flatApi.updatePantry(flatId, a.id, { qty: a.qty });
+    case 'deletePantry':
+      return flatApi.deletePantry(flatId, a.id);
+    case 'addInventory':
+      return flatApi.addInventory(flatId, { name: a.name, ownerId: a.ownerId, value: a.value });
+    case 'deleteInventory':
+      return flatApi.deleteInventory(flatId, a.id);
   }
 }

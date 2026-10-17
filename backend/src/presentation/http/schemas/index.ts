@@ -21,12 +21,21 @@ export const billParams = flatParams.extend({ billId: id });
 export const groceryParams = flatParams.extend({ itemId: id });
 export const taskParams = flatParams.extend({ taskId: id });
 export const expenseParams = flatParams.extend({ expenseId: id });
+export const pantryParams = flatParams.extend({ itemId: id });
+export const inventoryParams = flatParams.extend({ itemId: id });
 export const mealParams = flatParams.extend({ date: isoDate });
 
 export const createFlatBody = z.object({ name });
 export const joinFlatBody = z.object({ code: z.string().trim().length(8) });
 export const addMemberBody = z.object({ name, moveIn: isoDate });
 export const moveOutBody = z.object({ date: isoDate });
+export const depositBody = z.object({ amount: z.number().int().min(0).max(1_000_000_000) });
+const qty = z.number().min(0).max(10_000);
+export const addPantryBody = z.object({ name, qty, unit: z.string().trim().min(1).max(16), lowAt: qty });
+export const updatePantryBody = z
+  .object({ qty: qty.optional(), lowAt: qty.optional() })
+  .refine(p => p.qty !== undefined || p.lowAt !== undefined, 'nothing to update');
+export const addInventoryBody = z.object({ name, ownerId: id.nullable().optional(), value: z.number().int().min(0).max(1_000_000_000) });
 export const settlementQuery = z.object({ date: isoDate });
 export const remindersQuery = z.object({ on: isoDate.optional() });
 

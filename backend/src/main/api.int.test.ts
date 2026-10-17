@@ -190,6 +190,42 @@ test('recurring chores rotate, recurring bills roll over, weighted splits, delet
   assert.ok(!gone.body.expenses.some((x: { id: string }) => x.id === e.id));
 });
 
+test('deposit buy-out on move-out, pantry restock, inventory', async () => {
+  const owner = await newUser('Dep');
+  const mate = await newUser('DepMate');
+  const t = (path: string, body?: unknown, method = 'POST') => call(method, path, body, owner.accessToken);
+  await t('/flats', { name: 'Deposit Flat' });
+  const { flats: list } = (await t('/flats', undefined, 'GET')).body;
+  const flatId = list[0].id;
+  flatIds.push(flatId);
+  const joined = await call('POST', '/flats/join', { code: list[0].joinCode }, mate.accessToken);
+  const [o, m] = ['Dep', 'DepMate'].map(n => joined.body.members.find((x: { name: string }) => x.name === n).id);
+  const f = `/flats/${flatId}`;
+
+  await t(`${f}/members/${m}/deposit`, { amount: 1000000 }, 'PUT');
+  const preview = (await t(`${f}/members/${m}/settlement?date=${today()}`, undefined, 'GET')).body;
+  assert.deepEqual([preview.deposit, preview.final], [1000000, 1000000]);
+  const out = (await t(`${f}/members/${m}/move-out`, { date: today() })).body;
+  const me = out.members.find((x: { id: string }) => x.id === o);
+  const left = out.members.find((x: { id: string }) => x.id === m);
+  assert.deepEqual([me.deposit, left.deposit], [1000000, undefined]);
+  // Buy-out credit and payout cancel: everyone is square, the deposit now sits with the stayer.
+  assert.deepEqual((await t(`${f}/balances`, undefined, 'GET')).body.balances, { [o]: 0, [m]: 0 });
+
+  const p = (await t(`${f}/pantry`, { name: 'Rice', qty: 5, unit: 'kg', lowAt: 2 })).body;
+  assert.equal(p.groceries.length, 0);
+  const riceId = p.pantry[0].id;
+  const low = (await t(`${f}/pantry/${riceId}`, { qty: 1 }, 'PATCH')).body;
+  assert.deepEqual(low.groceries.map((g: { name: string; qty: number }) => [g.name, g.qty]), [['Rice', 3]]);
+  // Still low, already listed: not added twice.
+  assert.equal((await t(`${f}/pantry/${riceId}`, { qty: 0.5 }, 'PATCH')).body.groceries.length, 1);
+  assert.equal((await t(`${f}/pantry/${riceId}`, undefined, 'DELETE')).body.pantry.length, 0);
+
+  const inv = (await t(`${f}/inventory`, { name: 'Sofa', ownerId: o, value: 1500000 })).body.inventory;
+  assert.deepEqual([inv[0].name, inv[0].owner, inv[0].value], ['Sofa', o, 1500000]);
+  assert.equal((await t(`${f}/inventory/${inv[0].id}`, undefined, 'DELETE')).body.inventory.length, 0);
+});
+
 test('authorization: no token, other people’s flats, foreign member ids', async () => {
   const a = await newUser('Alice');
   const b = await newUser('Bob');

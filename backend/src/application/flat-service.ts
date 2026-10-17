@@ -9,7 +9,8 @@ import { RECIPES } from '../domain/recipes.ts';
 import { addMonths, nextAssignee, nextPeriod } from '../domain/recurring.ts';
 import { reminders } from '../domain/reminders.ts';
 import { spending } from '../domain/spending.ts';
-import { billExpense, isActiveOn, moveOutSettlement, settlementExpense } from '../domain/settlement.ts';
+import { lowStock } from '../domain/pantry.ts';
+import { billExpense, depositBuyout, isActiveOn, moveOutSettlement, settlementExpense } from '../domain/settlement.ts';
 import { newId, newJoinCode } from '../infrastructure/crypto.ts';
 import type { PrismaClient } from '../infrastructure/prisma.ts';
 
@@ -124,11 +125,26 @@ export class FlatService {
     const settlement = moveOutSettlement(memberId, date, s.members, s.expenses, s.bills);
     const staying = s.members.filter(m => m.id !== memberId && isActiveOn(m, date)).map(m => m.id);
     if (staying.length === 0) throw new AppError('invalid', 'LAST_MEMBER', 'Someone has to stay in the flat to settle with.');
+    const buyout = depositBuyout(settlement, staying, newId());
     const payout = settlementExpense(settlement, staying, newId());
+    // The people staying now own the leaver's deposit share.
+    const boughtOut = splitEqual(settlement.deposit, staying);
     await this.db.$transaction(async tx => {
-      await tx.member.update({ where: { id: memberId }, data: { moveOut: toDb(date) } });
+      await tx.member.update({ where: { id: memberId }, data: { moveOut: toDb(date), depositPaise: 0 } });
+      for (const [id, p] of Object.entries(boughtOut)) {
+        await tx.member.update({ where: { id }, data: { depositPaise: { increment: p } } });
+      }
+      if (buyout) await this.insertExpense(tx, flatId, buyout);
       if (payout) await this.insertExpense(tx, flatId, payout);
     });
+    return this.state(user, flatId);
+  }
+
+  async setDeposit(user: PublicUser, flatId: string, memberId: string, amount: number) {
+    const s = await this.state(user, flatId);
+    const m = this.assertMembers(s, [memberId])[0]!;
+    if (m.moveOut) throw new AppError('conflict', 'ALREADY_MOVED_OUT', `${m.name} has already moved out.`);
+    await this.db.member.update({ where: { id: memberId }, data: { depositPaise: amount } });
     return this.state(user, flatId);
   }
 
@@ -318,6 +334,69 @@ export class FlatService {
     return this.state(user, flatId);
   }
 
+  // ── Pantry & inventory ─────────────────────────────────
+
+  async addPantry(user: PublicUser, flatId: string, input: { name: string; qty: number; unit: string; lowAt: number }) {
+    await this.me(user, flatId);
+    await this.db.pantryItem.create({ data: { id: newId(), flatId, ...input, name: input.name.trim(), unit: input.unit.trim() } });
+    return this.restock(user, flatId);
+  }
+
+  async updatePantry(user: PublicUser, flatId: string, itemId: string, patch: { qty?: number | undefined; lowAt?: number | undefined }) {
+    await this.me(user, flatId);
+    const { count } = await this.db.pantryItem.updateMany({
+      where: { id: itemId, flatId },
+      data: { ...(patch.qty !== undefined && { qty: patch.qty }), ...(patch.lowAt !== undefined && { lowAt: patch.lowAt }) },
+    });
+    if (count === 0) throw new AppError('not_found', 'PANTRY_NOT_FOUND', 'That pantry item does not exist.');
+    return this.restock(user, flatId);
+  }
+
+  async deletePantry(user: PublicUser, flatId: string, itemId: string) {
+    await this.me(user, flatId);
+    const { count } = await this.db.pantryItem.deleteMany({ where: { id: itemId, flatId } });
+    if (count === 0) throw new AppError('not_found', 'PANTRY_NOT_FOUND', 'That pantry item does not exist.');
+    return this.state(user, flatId);
+  }
+
+  /** Puts pantry items that ran low on the grocery list (once), needed by tomorrow. */
+  private async restock(user: PublicUser, flatId: string) {
+    const s = await this.state(user, flatId);
+    const low = lowStock(s.pantry, s.groceries);
+    if (low.length === 0) return s;
+    const neededBy = addDays(todayIso(), 1);
+    await this.db.groceryItem.createMany({
+      data: low.map(p =>
+        this.groceryRow(flatId, {
+          id: newId(),
+          name: p.name,
+          qty: Math.max(p.lowAt * 2 - p.qty, 1),
+          unit: p.unit,
+          neededBy,
+          forMeals: ['Pantry'],
+          bought: false,
+        }),
+      ),
+    });
+    return this.state(user, flatId);
+  }
+
+  async addInventory(user: PublicUser, flatId: string, input: { name: string; ownerId?: string | null | undefined; value: number }) {
+    const s = await this.state(user, flatId);
+    if (input.ownerId) this.assertMembers(s, [input.ownerId]);
+    await this.db.inventoryItem.create({
+      data: { id: newId(), flatId, name: input.name.trim(), ownerId: input.ownerId ?? null, valuePaise: input.value },
+    });
+    return this.state(user, flatId);
+  }
+
+  async deleteInventory(user: PublicUser, flatId: string, itemId: string) {
+    await this.me(user, flatId);
+    const { count } = await this.db.inventoryItem.deleteMany({ where: { id: itemId, flatId } });
+    if (count === 0) throw new AppError('not_found', 'INVENTORY_NOT_FOUND', 'That item does not exist.');
+    return this.state(user, flatId);
+  }
+
   // ── Tasks ──────────────────────────────────────────────
 
   async addTask(
@@ -442,6 +521,8 @@ export class FlatService {
         meals: { orderBy: { date: 'asc' } },
         groceries: true,
         tasks: { orderBy: { due: 'asc' } },
+        pantry: { orderBy: { name: 'asc' } },
+        inventory: { orderBy: { name: 'asc' } },
       },
     });
     return {
@@ -453,6 +534,7 @@ export class FlatService {
         name: m.name,
         moveIn: fromDb(m.moveIn),
         ...(m.moveOut && { moveOut: fromDb(m.moveOut) }),
+        ...(m.depositPaise && { deposit: m.depositPaise }),
       })),
       expenses: flat.expenses.map(e => ({
         id: e.id,
@@ -501,6 +583,13 @@ export class FlatService {
         due: fromDb(t.due),
         status: t.status as Task['status'],
         ...(t.repeatDays && { repeatDays: t.repeatDays }),
+      })),
+      pantry: flat.pantry.map(p => ({ id: p.id, name: p.name, qty: p.qty, unit: p.unit, lowAt: p.lowAt })),
+      inventory: flat.inventory.map(i => ({
+        id: i.id,
+        name: i.name,
+        value: i.valuePaise,
+        ...(i.ownerId && { owner: i.ownerId }),
       })),
     };
   }

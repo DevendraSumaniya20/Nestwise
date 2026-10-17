@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, StyleSheet, View } from 'react-native';
 import { addDays, isIsoDate, relativeDay, shortDate } from '../utils/dates';
 import { RECIPES } from '../data/recipes';
-import { AddCard, Button, Card, Checkbox, Chip, Chips, ErrorText, Field, Label, ListScreen, Row, T } from '../components';
+import { AddCard, Button, Card, Checkbox, Chip, Chips, Empty, ErrorText, Field, Label, ListScreen, Row, T } from '../components';
 import { space } from '../constants';
-import { useFlat } from '../hooks';
+import { useColors, useFlat } from '../hooks';
+import type { PantryItem } from '../types';
 import { useT } from '../i18n';
 
 export function FoodScreen() {
@@ -83,6 +84,15 @@ export function FoodScreen() {
           </Chips>
         </Card>
       ) : null}
+
+      <Card title={t.food.pantry}>
+        {state.pantry.length === 0 ? <Empty>{t.food.pantryEmpty}</Empty> : null}
+        {state.pantry.map(p => (
+          <PantryRow key={p.id} item={p} />
+        ))}
+        {state.pantry.length ? <T muted size={12}>{t.food.pantryHelp}</T> : null}
+      </Card>
+      <AddCard title={t.food.addPantry}>{close => <AddPantry onDone={close} />}</AddCard>
       </>
       }
       listTitle={t.food.list}
@@ -108,6 +118,69 @@ export function FoodScreen() {
       )}
       footer={<AddCard title={t.food.add}>{close => <AddGrocery onDone={close} />}</AddCard>}
     />
+  );
+}
+
+function PantryRow({ item }: { item: PantryItem }) {
+  const c = useColors();
+  const { dispatch } = useFlat();
+  const low = item.qty <= item.lowAt;
+  const step = (n: number) => dispatch({ type: 'setPantryQty', id: item.id, qty: Math.max(0, item.qty + n) });
+  return (
+    <Row
+      label={item.name}
+      onLongPress={() =>
+        Alert.alert('Remove from pantry?', item.name, [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: () => dispatch({ type: 'deletePantry', id: item.id }) },
+        ])
+      }
+    >
+      <View style={styles.flex}>
+        <T>{item.name}</T>
+        <T muted size={12} color={low ? c.warn : undefined}>
+          {`${item.qty} ${item.unit}${low ? ' · running low' : ` · low at ${item.lowAt}`}`}
+        </T>
+      </View>
+      <Chip label="−" onPress={() => step(-1)} />
+      <Chip label="+" onPress={() => step(1)} />
+    </Row>
+  );
+}
+
+function AddPantry({ onDone }: { onDone: () => void }) {
+  const { dispatch } = useFlat();
+  const [name, setName] = useState('');
+  const [qty, setQty] = useState('');
+  const [unit, setUnit] = useState('kg');
+  const [lowAt, setLowAt] = useState('1');
+  const [error, setError] = useState('');
+  const save = async () => {
+    const q = Number(qty);
+    const l = Number(lowAt);
+    if (!name.trim()) return setError('Add an item name.');
+    if (!qty.trim() || !(q >= 0)) return setError('Enter how much you have, like 5.');
+    if (!unit.trim()) return setError('Add a unit, like kg or l.');
+    if (!lowAt.trim() || !(l >= 0)) return setError('Enter the low mark, like 1.');
+    if (await dispatch({ type: 'addPantry', name: name.trim(), qty: q, unit: unit.trim(), lowAt: l })) onDone();
+  };
+  return (
+    <>
+      <ErrorText>{error}</ErrorText>
+      <Field label="Item" value={name} onChangeText={setName} placeholder="Rice" />
+      <View style={styles.pair}>
+        <View style={styles.flex}>
+          <Field label="Have" value={qty} onChangeText={setQty} keyboardType="decimal-pad" placeholder="5" />
+        </View>
+        <View style={styles.flex}>
+          <Field label="Unit" value={unit} onChangeText={setUnit} autoCapitalize="none" />
+        </View>
+        <View style={styles.flex}>
+          <Field label="Low at" value={lowAt} onChangeText={setLowAt} keyboardType="decimal-pad" />
+        </View>
+      </View>
+      <Button title="Add to pantry" onPress={save} />
+    </>
   );
 }
 

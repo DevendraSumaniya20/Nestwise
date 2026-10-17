@@ -72,6 +72,35 @@ model Flat {
   meals     Meal[]
   groceries GroceryItem[]
   tasks     Task[]
+  pantry    PantryItem[]
+  inventory InventoryItem[]
+}
+
+/// Staples kept at home. When `qty` drops to `lowAt`, it goes on the grocery list.
+model PantryItem {
+  id     String @id @db.VarChar(32)
+  flatId String @db.VarChar(32)
+  name   String @db.VarChar(80)
+  qty    Float
+  unit   String @db.VarChar(16)
+  lowAt  Float
+
+  flat Flat @relation(fields: [flatId], references: [id], onDelete: Cascade)
+
+  @@index([flatId])
+}
+
+/// Furniture and appliances, and who owns them (null = bought together).
+model InventoryItem {
+  id         String  @id @db.VarChar(32)
+  flatId     String  @db.VarChar(32)
+  name       String  @db.VarChar(80)
+  ownerId    String? @db.VarChar(32)
+  valuePaise Int     @default(0)
+
+  flat Flat @relation(fields: [flatId], references: [id], onDelete: Cascade)
+
+  @@index([flatId])
 }
 
 /// A person living in the flat. `userId` is null for flatmates without an account yet.
@@ -83,6 +112,8 @@ model Member {
   role    String    @default("member") @db.VarChar(16)
   moveIn  DateTime  @db.Date
   moveOut DateTime? @db.Date
+  /// Their part of the flat's security deposit. On move-out the people staying buy it out.
+  depositPaise Int @default(0)
 
   flat   Flat           @relation(fields: [flatId], references: [id], onDelete: Cascade)
   user     User?            @relation(fields: [userId], references: [id], onDelete: SetNull)

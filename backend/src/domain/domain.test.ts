@@ -7,6 +7,7 @@ import type { Bill, Expense, FlatState, Member } from './model.ts';
 import { formatInr, parseRupees, splitByOccupancy, splitByWeights, splitEqual } from './money.ts';
 import { addMonths, nextAssignee, nextPeriod } from './recurring.ts';
 import { spending } from './spending.ts';
+import { lowStock } from './pantry.ts';
 import { reminders } from './reminders.ts';
 import { billExpense, moveOutSettlement, outstandingAfterMoveOut, settlementExpense } from './settlement.ts';
 
@@ -82,7 +83,7 @@ test('meals merge into groceries with the earliest needed-by date, idempotently'
 
 test('reminders: Friday spinach still unbought on Thursday goes to its buyer', () => {
   const state: FlatState = {
-    version: 1, flatName: 'x', currentUserId: 'rahul', members, expenses: [], meals: [], tasks: [],
+    version: 1, flatName: 'x', currentUserId: 'rahul', members, expenses: [], meals: [], tasks: [], pantry: [], inventory: [],
     bills: [{ ...electricity, dueDate: '2026-10-17' }],
     groceries: [
       { id: 's', name: 'Spinach', qty: 0.5, unit: 'kg', neededBy: '2026-10-16', forMeals: ['Palak Paneer'], assignee: 'rahul', bought: false },
@@ -115,4 +116,18 @@ test('spending: one month, by category and person, settlements excluded', () => 
   assert.deepEqual(s.byCategory, [{ category: 'Groceries', amount: 800 }, { category: 'Rent', amount: 400 }]);
   assert.deepEqual(s.byMember.find(m => m.memberId === 'rahul'), { memberId: 'rahul', paid: 800, share: 300 });
   assert.equal(sum(Object.fromEntries(s.byMember.map(m => [m.memberId, m.share]))), 1200);
+});
+
+test('pantry: low items go on the list once; deposit is refunded on move-out', () => {
+  const rice = { id: 'r', name: 'Rice', qty: 1, unit: 'kg', lowAt: 2 };
+  const oil = { id: 'o', name: 'Oil', qty: 3, unit: 'l', lowAt: 1 };
+  assert.deepEqual(lowStock([rice, oil], []), [rice]);
+  const listed = { id: 'g', name: 'rice', qty: 2, unit: 'KG', neededBy: '2026-10-01', forMeals: [], bought: false };
+  assert.deepEqual(lowStock([rice], [listed]), []);
+  assert.deepEqual(lowStock([rice], [{ ...listed, bought: true }]), [rice]);
+
+  const withDeposit = members.map(m => (m.id === 'rahul' ? { ...m, deposit: 500000 } : m));
+  const s = moveOutSettlement('rahul', '2026-10-20', withDeposit, [], []);
+  assert.equal(s.deposit, 500000);
+  assert.equal(s.final, 500000);
 });

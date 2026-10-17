@@ -11,6 +11,8 @@ export type MoveOutSettlement = {
   balance: Paise;
   /** Their occupancy share of bills that are still pending. */
   estimates: BillEstimate[];
+  /** Their deposit share, refunded by the people staying. */
+  deposit: Paise;
   /** Positive = flat pays them, negative = they pay the flat. */
   final: Paise;
 };
@@ -49,8 +51,9 @@ export function moveOutSettlement(
         ] ?? 0,
     }))
     .filter(e => e.share > 0);
-  const final = balance - estimates.reduce((s, e) => s + e.share, 0);
-  return { memberId, moveOut, balance, estimates, final };
+  const deposit = members.find(m => m.id === memberId)?.deposit ?? 0;
+  const final = balance - estimates.reduce((s, e) => s + e.share, 0) + deposit;
+  return { memberId, moveOut, balance, estimates, deposit, final };
 }
 
 /**
@@ -76,6 +79,23 @@ export function settlementExpense(
     // Flat pays leaver: stayers "paid", leaver's share consumed — and vice versa.
     paid: s.final > 0 ? others : leaver,
     owed: s.final > 0 ? leaver : others,
+  };
+}
+
+/**
+ * The people staying take over the leaver's deposit share: the leaver is credited
+ * with it and the stayers charged, so the settlement payout clears it.
+ */
+export function depositBuyout(s: MoveOutSettlement, stayingIds: Id[], id: Id): Expense | null {
+  if (s.deposit === 0 || stayingIds.length === 0) return null;
+  return {
+    id,
+    title: 'Deposit buy-out',
+    category: 'Settlement',
+    amount: s.deposit,
+    date: s.moveOut,
+    paid: { [s.memberId]: s.deposit },
+    owed: splitEqual(s.deposit, stayingIds),
   };
 }
 

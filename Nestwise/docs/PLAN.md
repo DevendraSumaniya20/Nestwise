@@ -79,7 +79,7 @@ AsyncStorage · Montserrat.
 ### Phase 2 — Real notifications + documents
 - Local push notifications (e.g. `@notifee/react-native`) scheduled from the reminders feed
 - Flat Vault: documents (PDF/image picker), categories, expiry reminders
-- Flat inventory (who owns sofa/TV/fridge), pantry with low-stock -> grocery list
+- [x] Flat inventory (who owns sofa/TV/fridge), pantry with low-stock -> grocery list
 - [x] Recurring bills (paying one creates next month's, estimated at the actual amount)
 - [x] Recurring chores with rotation (done → next round, next active flatmate in move-in order)
 - [x] Split by shares (unequal splits) and delete expense/task (long-press; bill payments can't be deleted)
@@ -90,8 +90,9 @@ AsyncStorage · Montserrat.
 
 ### Phase 3 — Multi-device
 - Backend (auth, flats, invites by link/code), sync, remote push
-- Multiple homes per user
-- Deposit + rent adjustment in settlement, settlement PDF export
+- [x] Multiple homes per user (switch on the Flat tab; last one reopens)
+- [x] Deposit in settlement (stayers buy out the leaver's share); statement shared as text
+- Settlement PDF export
 
 ### Phase 4 — AI
 - "Plan dinners for 4 under ₹2,500, mostly veg" -> meals -> grocery list -> cost estimate -> assign

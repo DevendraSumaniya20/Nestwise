@@ -51,6 +51,33 @@ export function flatRouter(auth: AuthService, flats: FlatService): Router {
     res.json(await flats.moveOut(currentUser(res), flatId, memberId, s.moveOutBody.parse(req.body).date));
   });
 
+  r.put('/flats/:flatId/members/:memberId/deposit', async (req, res) => {
+    const { flatId, memberId } = s.memberParams.parse(req.params);
+    res.json(await flats.setDeposit(currentUser(res), flatId, memberId, s.depositBody.parse(req.body).amount));
+  });
+
+  // Pantry & inventory
+  r.post('/flats/:flatId/pantry', async (req, res) => {
+    const { flatId } = s.flatParams.parse(req.params);
+    res.status(201).json(await flats.addPantry(currentUser(res), flatId, s.addPantryBody.parse(req.body)));
+  });
+  r.patch('/flats/:flatId/pantry/:itemId', async (req, res) => {
+    const { flatId, itemId } = s.pantryParams.parse(req.params);
+    res.json(await flats.updatePantry(currentUser(res), flatId, itemId, s.updatePantryBody.parse(req.body)));
+  });
+  r.delete('/flats/:flatId/pantry/:itemId', async (req, res) => {
+    const { flatId, itemId } = s.pantryParams.parse(req.params);
+    res.json(await flats.deletePantry(currentUser(res), flatId, itemId));
+  });
+  r.post('/flats/:flatId/inventory', async (req, res) => {
+    const { flatId } = s.flatParams.parse(req.params);
+    res.status(201).json(await flats.addInventory(currentUser(res), flatId, s.addInventoryBody.parse(req.body)));
+  });
+  r.delete('/flats/:flatId/inventory/:itemId', async (req, res) => {
+    const { flatId, itemId } = s.inventoryParams.parse(req.params);
+    res.json(await flats.deleteInventory(currentUser(res), flatId, itemId));
+  });
+
   // Money
   r.post('/flats/:flatId/expenses', async (req, res) => {
     const { flatId } = s.flatParams.parse(req.params);

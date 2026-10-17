@@ -1,10 +1,12 @@
-import { LogOut } from 'lucide-react-native';
+import { LogOut, Share2 } from 'lucide-react-native';
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Alert, Share, StyleSheet, View } from 'react-native';
 import { addDays, isIsoDate, relativeDay, shortDate } from '../utils/dates';
-import { EXPENSE_CATEGORIES, type Bill, type ExpenseCategory, type Member } from '../types';
+import { EXPENSE_CATEGORIES, type Bill, type ExpenseCategory, type InventoryItem, type Member } from '../types';
 import { formatInr, parseRupees } from '../utils/money';
-import { moveOutSettlement, outstandingAfterMoveOut } from '../services/settlement';
+import { type MoveOutSettlement, moveOutSettlement, outstandingAfterMoveOut } from '../services/settlement';
+import { useAppDispatch, useAppSelector } from '../store';
+import { createFlat, joinFlat, loadFlat } from '../store/flatSlice';
 import { AddCard, Avatar, Button, Card, Chip, Chips, Empty, ErrorText, Field, Label, MemberPicker, Row, Screen, T } from '../components';
 import { space } from '../constants';
 import { useAuth, useColors, useFlat, useThemePref } from '../hooks';
@@ -56,6 +58,16 @@ export function FlatScreen() {
       </Card>
       <AddCard title={t.flat.addFlatmate}>{close => <AddMember onDone={close} />}</AddCard>
 
+      <Card title={t.flat.inventory}>
+        {state.inventory.length === 0 ? <Empty>{t.flat.inventoryEmpty}</Empty> : null}
+        {state.inventory.map(i => (
+          <InventoryRow key={i.id} item={i} />
+        ))}
+      </Card>
+      <AddCard title={t.flat.addInventory}>{close => <AddInventory onDone={close} />}</AddCard>
+
+      <Homes />
+
       <Card title={t.flat.invite}>
         <T size={26} weight="extrabold">{joinCode || '········'}</T>
         <T muted size={13}>{t.flat.inviteHelp}</T>
@@ -84,6 +96,126 @@ const THEMES: { value: ThemePref; label: string }[] = [
   { value: 'light', label: 'Light' },
   { value: 'dark', label: 'Dark' },
 ];
+
+/** Every home the user is in; tap to switch, or add another. */
+function Homes() {
+  const t = useT();
+  const dispatch = useAppDispatch();
+  const { flats, flatId } = useAppSelector(s => s.flat);
+  return (
+    <>
+      <Card title={t.flat.homes}>
+        <Chips>
+          {flats.map(f => (
+            <Chip key={f.id} label={f.name} selected={f.id === flatId} onPress={() => f.id !== flatId && dispatch(loadFlat(f.id))} />
+          ))}
+        </Chips>
+      </Card>
+      <AddCard title={t.flat.addHome}>{close => <AddHome onDone={close} />}</AddCard>
+    </>
+  );
+}
+
+function AddHome({ onDone }: { onDone: () => void }) {
+  const t = useT();
+  const dispatch = useAppDispatch();
+  const [name, setName] = useState('');
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const run = async (thunk: ReturnType<typeof createFlat> | ReturnType<typeof joinFlat>) => {
+    setBusy(true);
+    try {
+      await dispatch(thunk).unwrap();
+      onDone();
+    } catch (e) {
+      setError(typeof e === 'string' ? e : 'Something went wrong.');
+    }
+    setBusy(false);
+  };
+  return (
+    <>
+      <ErrorText>{error}</ErrorText>
+      <Field label={t.setup.flatName} value={name} onChangeText={setName} placeholder="Weekend house" />
+      <Button
+        title={t.setup.create}
+        disabled={busy}
+        onPress={() => (name.trim() ? run(createFlat(name.trim())) : setError('Name your flat.'))}
+      />
+      <Field label={t.setup.joinCode} value={code} onChangeText={v => setCode(v.toUpperCase())} autoCapitalize="characters" maxLength={8} />
+      <Button
+        kind="ghost"
+        title={t.setup.join}
+        disabled={busy}
+        onPress={() => (code.trim().length === 8 ? run(joinFlat(code.trim())) : setError('Join codes are 8 characters.'))}
+      />
+    </>
+  );
+}
+
+function InventoryRow({ item }: { item: InventoryItem }) {
+  const { dispatch, nameOf } = useFlat();
+  return (
+    <Row
+      label={item.name}
+      onLongPress={() =>
+        Alert.alert('Remove item?', item.name, [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Remove', style: 'destructive', onPress: () => dispatch({ type: 'deleteInventory', id: item.id }) },
+        ])
+      }
+    >
+      <View style={styles.flex}>
+        <T>{item.name}</T>
+        <T muted size={13}>{item.owner ? `Owned by ${nameOf(item.owner)}` : 'Shared by the flat'}</T>
+      </View>
+      {item.value ? <T muted>{formatInr(item.value)}</T> : null}
+    </Row>
+  );
+}
+
+function AddInventory({ onDone }: { onDone: () => void }) {
+  const { dispatch, active } = useFlat();
+  const [name, setName] = useState('');
+  const [owner, setOwner] = useState<string | null>(null);
+  const [value, setValue] = useState('');
+  const [error, setError] = useState('');
+  const save = async () => {
+    const v = value.trim() ? parseRupees(value) : 0;
+    if (!name.trim()) return setError('Add an item name.');
+    if (v === null) return setError('Enter a value like 15000, or leave it blank.');
+    if (await dispatch({ type: 'addInventory', name: name.trim(), ownerId: owner, value: v })) onDone();
+  };
+  return (
+    <>
+      <ErrorText>{error}</ErrorText>
+      <Field label="Item" value={name} onChangeText={setName} placeholder="Sofa" />
+      <Label>Owner</Label>
+      <Chips>
+        <Chip label="Shared" selected={owner === null} onPress={() => setOwner(null)} />
+        {active.map(m => (
+          <Chip key={m.id} label={m.name} selected={owner === m.id} onPress={() => setOwner(m.id)} />
+        ))}
+      </Chips>
+      <Field label="Value (₹, optional)" value={value} onChangeText={setValue} keyboardType="decimal-pad" />
+      <Button title="Add item" onPress={save} />
+    </>
+  );
+}
+
+/** Plain-text move-out statement for WhatsApp, email, etc. */
+function statementText(flatName: string, name: string, s: MoveOutSettlement, takes: InventoryItem[]) {
+  const sign = (p: number) => (p >= 0 ? `+${formatInr(p)}` : formatInr(p));
+  return [
+    `${flatName} — move-out statement for ${name}`,
+    `Move-out date: ${s.moveOut}`,
+    `Expense balance: ${sign(s.balance)}`,
+    ...s.estimates.map(e => `${e.bill.name} estimate (pending): ${sign(-e.share)}`),
+    ...(s.deposit ? [`Deposit refund: ${sign(s.deposit)}`] : []),
+    s.final >= 0 ? `${name} receives ${formatInr(s.final)}` : `${name} pays ${formatInr(-s.final)}`,
+    ...(takes.length ? [`Takes: ${takes.map(i => i.name).join(', ')}`] : []),
+  ].join('\n');
+}
 
 function BillRow({ bill, open, onToggle }: { bill: Bill; open: boolean; onToggle: () => void }) {
   const { dispatch, today, active, me } = useFlat();
@@ -129,6 +261,8 @@ function MemberRow({ member, open, onToggle }: { member: Member; open: boolean; 
   const { state, dispatch, today, active } = useFlat();
   const c = useColors();
   const [date, setDate] = useState(today);
+  const [deposit, setDeposit] = useState(member.deposit ? String(member.deposit / 100) : '');
+  const takes = state.inventory.filter(i => i.owner === member.id);
   const valid = isIsoDate(date) && date >= member.moveIn;
   const preview = valid ? moveOutSettlement(member.id, date, state.members, state.expenses, state.bills) : null;
 
@@ -160,6 +294,20 @@ function MemberRow({ member, open, onToggle }: { member: Member; open: boolean; 
       </Row>
       {open ? (
         <View style={styles.inset}>
+          <View style={styles.pair}>
+            <View style={styles.flex}>
+              <Field label="Deposit share (₹)" value={deposit} onChangeText={setDeposit} keyboardType="decimal-pad" placeholder="0" />
+            </View>
+            <Button
+              kind="ghost"
+              title="Save"
+              onPress={() => {
+                const p = deposit.trim() ? parseRupees(deposit) : 0;
+                if (p === null) return Alert.alert('Check the deposit', 'Enter an amount like 20000.');
+                dispatch({ type: 'setDeposit', memberId: member.id, amount: p });
+              }}
+            />
+          </View>
           <Field label="Move-out date" value={date} onChangeText={setDate} autoCapitalize="none" />
           {preview ? (
             <View style={[styles.statement, { borderColor: c.line, backgroundColor: c.bg }]}>
@@ -167,6 +315,7 @@ function MemberRow({ member, open, onToggle }: { member: Member; open: boolean; 
               {preview.estimates.map(e => (
                 <Line key={e.bill.id} label={`${e.bill.name} estimate (pending)`} value={-e.share} />
               ))}
+              {preview.deposit ? <Line label="Deposit refund (bought out by the rest)" value={preview.deposit} /> : null}
               <View style={[styles.rule, { backgroundColor: c.line }]} />
               <T strong size={17} color={preview.final >= 0 ? c.good : c.bad}>
                 {preview.final >= 0
@@ -176,6 +325,13 @@ function MemberRow({ member, open, onToggle }: { member: Member; open: boolean; 
               <T muted size={12}>
                 Estimates are pro-rated by days lived. When the real bill is paid, the difference shows up here as an adjustment.
               </T>
+              {takes.length ? <T size={13}>{`Takes: ${takes.map(i => i.name).join(', ')}`}</T> : null}
+              <Button
+                kind="ghost"
+                icon={Share2}
+                title="Share statement"
+                onPress={() => Share.share({ message: statementText(state.flatName, member.name, preview, takes) }).catch(() => {})}
+              />
             </View>
           ) : (
             <ErrorText>Enter a date (YYYY-MM-DD) on or after move-in.</ErrorText>

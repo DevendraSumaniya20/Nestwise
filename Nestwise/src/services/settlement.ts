@@ -11,6 +11,8 @@ export type MoveOutSettlement = {
   balance: Paise;
   /** Their occupancy share of bills that are still pending. */
   estimates: BillEstimate[];
+  /** Their deposit share, refunded by the people staying. */
+  deposit: Paise;
   /** Positive = flat pays them, negative = they pay the flat. */
   final: Paise;
 };
@@ -49,8 +51,9 @@ export function moveOutSettlement(
         ] ?? 0,
     }))
     .filter(e => e.share > 0);
-  const final = balance - estimates.reduce((s, e) => s + e.share, 0);
-  return { memberId, moveOut, balance, estimates, final };
+  const deposit = members.find(m => m.id === memberId)?.deposit ?? 0;
+  const final = balance - estimates.reduce((s, e) => s + e.share, 0) + deposit;
+  return { memberId, moveOut, balance, estimates, deposit, final };
 }
 
 /**

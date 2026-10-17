@@ -3,6 +3,7 @@ import { addDays, overlapDays } from '../../utils/dates';
 import { addMealsToGroceries } from '../groceries';
 import type { Bill, Expense, FlatState, Member } from '../../types';
 import { formatInr, parseRupees, splitByOccupancy, splitEqual } from '../../utils/money';
+import { lowStock } from '../pantry';
 import { reminders } from '../reminders';
 import {
   billExpense,
@@ -130,6 +131,8 @@ test('reminders: Friday spinach still unbought on Thursday', () => {
       { id: 'r', name: 'Rice', qty: 1, unit: 'kg', neededBy: '2026-10-25', forMeals: ['Pulao'], bought: false },
     ],
     tasks: [],
+    pantry: [],
+    inventory: [],
   };
   const r = reminders(state, '2026-10-15'); // Thursday
   expect(r.map(x => x.id)).toEqual(['g-s', 'b-elec']);
@@ -147,4 +150,12 @@ test('myShare and myDebts describe money from one person’s view', () => {
     { other: 'amit', amount: 5, owesMe: true },
     { other: 'jay', amount: 3, owesMe: false },
   ]);
+});
+
+test('pantry low-stock and deposit refund (app copy matches server)', () => {
+  const rice = { id: 'r', name: 'Rice', qty: 1, unit: 'kg', lowAt: 2 };
+  expect(lowStock([rice], [])).toEqual([rice]);
+  expect(lowStock([rice], [{ id: 'g', name: 'rice', qty: 2, unit: 'kg', neededBy: '2026-10-01', forMeals: [], bought: false }])).toEqual([]);
+  const ms = [{ id: 'a', name: 'A', moveIn: '2026-01-01', deposit: 500000 }, { id: 'b', name: 'B', moveIn: '2026-01-01' }];
+  expect(moveOutSettlement('a', '2026-10-20', ms, [], []).final).toBe(500000);
 });

@@ -3,7 +3,7 @@ import auth, { login, logout, sessionEnded } from '../authSlice';
 import flat, { loadFlat, runFlatAction } from '../flatSlice';
 import type { FlatState } from '../../types';
 
-const flatState = { version: 1, flatName: 'F', currentUserId: 'm1', members: [], expenses: [], bills: [], meals: [], groceries: [], tasks: [] } as FlatState;
+const flatState = { version: 1, flatName: 'F', currentUserId: 'm1', members: [], expenses: [], bills: [], meals: [], groceries: [], tasks: [], pantry: [], inventory: [] } as FlatState;
 const user = { id: 'u1', email: 'a@b.c', name: 'A' };
 const makeStore = () => configureStore({ reducer: { auth, flat } });
 

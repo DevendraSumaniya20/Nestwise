@@ -9,6 +9,8 @@ export type Member = {
   name: string;
   moveIn: IsoDate;
   moveOut?: IsoDate;
+  /** Their part of the security deposit; bought out by the people staying when they leave. */
+  deposit?: Paise;
 };
 
 export const EXPENSE_CATEGORIES = [
@@ -88,6 +90,12 @@ export type Task = {
   repeatDays?: number;
 };
 
+/** A staple kept at home; at or below `lowAt` it goes on the grocery list. */
+export type PantryItem = { id: Id; name: string; qty: number; unit: string; lowAt: number };
+
+/** Furniture or an appliance; no owner = bought together. */
+export type InventoryItem = { id: Id; name: string; owner?: Id; value: Paise };
+
 export type FlatState = {
   version: 1;
   flatName: string;
@@ -98,4 +106,6 @@ export type FlatState = {
   meals: Meal[];
   groceries: GroceryItem[];
   tasks: Task[];
+  pantry: PantryItem[];
+  inventory: InventoryItem[];
 };
